@@ -1,0 +1,27 @@
+{
+    "values": [
+        {
+            "$type": "{41DCBEAB-203C-4A05-96FA-98E1D8A96FA1} ImportGroup"
+        },
+        {
+            "$type": "{07B356B7-3635-40B5-878A-FAC4EFD5AD86} MeshGroup",
+            "name": "wrist3",
+            "nodeSelectionList": {
+                "selectedNodes": [
+                    "Scene",
+                    "Scene.eSeries_UR5e_058",
+                    "Scene.eSeries_UR5e_058.LinkGrey",
+                    "Scene.eSeries_UR5e_058.transform"
+                ]
+            },
+            "rules": {
+                "rules": [
+                    {
+                        "$type": "UVsRule"
+                    }
+                ]
+            },
+            "id": "{C48B8AB4-CB0D-46C4-BD96-6F71B7518A0A}"
+        }
+    ]
+}

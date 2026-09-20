@@ -1,0 +1,45 @@
+{
+    "values": [
+        {
+            "$type": "{41DCBEAB-203C-4A05-96FA-98E1D8A96FA1} ImportGroup"
+        },
+        {
+            "$type": "{07B356B7-3635-40B5-878A-FAC4EFD5AD86} MeshGroup",
+            "name": "forearm",
+            "nodeSelectionList": {
+                "selectedNodes": [
+                    "Scene",
+                    "Scene.eSeries_UR5e_020",
+                    "Scene.eSeries_UR5e_020.JointGrey",
+                    "Scene.eSeries_UR5e_020.transform",
+                    "Scene.eSeries_UR5e_021",
+                    "Scene.eSeries_UR5e_021.Black",
+                    "Scene.eSeries_UR5e_021.transform",
+                    "Scene.eSeries_UR5e_022",
+                    "Scene.eSeries_UR5e_022.LinkGrey",
+                    "Scene.eSeries_UR5e_022.transform",
+                    "Scene.eSeries_UR5e_023",
+                    "Scene.eSeries_UR5e_023.Black",
+                    "Scene.eSeries_UR5e_023.transform",
+                    "Scene.eSeries_UR5e_024",
+                    "Scene.eSeries_UR5e_024.URBlue",
+                    "Scene.eSeries_UR5e_024.transform",
+                    "Scene.eSeries_UR5e_025",
+                    "Scene.eSeries_UR5e_025.Black",
+                    "Scene.eSeries_UR5e_025.transform",
+                    "Scene.eSeries_UR5e_028",
+                    "Scene.eSeries_UR5e_028.JointGrey",
+                    "Scene.eSeries_UR5e_028.transform"
+                ]
+            },
+            "rules": {
+                "rules": [
+                    {
+                        "$type": "UVsRule"
+                    }
+                ]
+            },
+            "id": "{9F64E7B5-42C9-442E-9ACC-C1C175AACABF}"
+        }
+    ]
+}

@@ -1,0 +1,33 @@
+{
+    "values": [
+        {
+            "$type": "{41DCBEAB-203C-4A05-96FA-98E1D8A96FA1} ImportGroup"
+        },
+        {
+            "$type": "{07B356B7-3635-40B5-878A-FAC4EFD5AD86} MeshGroup",
+            "name": "shoulder",
+            "nodeSelectionList": {
+                "selectedNodes": [
+                    "Scene",
+                    "Scene.eSeries_UR5e_001",
+                    "Scene.eSeries_UR5e_001.JointGrey",
+                    "Scene.eSeries_UR5e_001.transform",
+                    "Scene.eSeries_UR5e_007",
+                    "Scene.eSeries_UR5e_007.Black",
+                    "Scene.eSeries_UR5e_007.transform",
+                    "Scene.eSeries_UR5e_008",
+                    "Scene.eSeries_UR5e_008.URBlue",
+                    "Scene.eSeries_UR5e_008.transform"
+                ]
+            },
+            "rules": {
+                "rules": [
+                    {
+                        "$type": "UVsRule"
+                    }
+                ]
+            },
+            "id": "{E3B17860-E0ED-4B86-BA91-865D829854BF}"
+        }
+    ]
+}

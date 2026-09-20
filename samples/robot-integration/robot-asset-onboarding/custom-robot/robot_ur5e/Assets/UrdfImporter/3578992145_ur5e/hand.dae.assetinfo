@@ -1,0 +1,67 @@
+{
+    "values": [
+        {
+            "$type": "{41DCBEAB-203C-4A05-96FA-98E1D8A96FA1} ImportGroup"
+        },
+        {
+            "$type": "{07B356B7-3635-40B5-878A-FAC4EFD5AD86} MeshGroup",
+            "name": "hand",
+            "nodeSelectionList": {
+                "selectedNodes": [
+                    "Scene",
+                    "Scene.Camera",
+                    "Scene.Light",
+                    "Scene.NONE",
+                    "Scene.NONE.Empty_material",
+                    "Scene.NONE.UV0",
+                    "Scene.NONE.transform",
+                    "Scene.NONE_001",
+                    "Scene.NONE_001.Empty_material",
+                    "Scene.NONE_001.UV0",
+                    "Scene.NONE_001.transform",
+                    "Scene.NONE_002",
+                    "Scene.NONE_002.Empty_material",
+                    "Scene.NONE_002.UV0",
+                    "Scene.NONE_002.transform",
+                    "Scene.NONE_003",
+                    "Scene.NONE_003.Empty_material",
+                    "Scene.NONE_003.UV0",
+                    "Scene.NONE_003.transform",
+                    "Scene.NONE_004",
+                    "Scene.NONE_004.Empty_material",
+                    "Scene.NONE_004.UV0",
+                    "Scene.NONE_004.transform",
+                    "Scene.NONE_005",
+                    "Scene._2__1",
+                    "Scene._2__1.Empty_material",
+                    "Scene._2__1.UV0",
+                    "Scene._2__1.transform",
+                    "Scene._2__2",
+                    "Scene._2__2.Empty_material",
+                    "Scene._2__2.UV0",
+                    "Scene._2__2.transform",
+                    "Scene._D3y__2",
+                    "Scene._D3y__2.Empty_material",
+                    "Scene._D3y__2.UV0",
+                    "Scene._D3y__2.transform",
+                    "Scene._D3y__2_001",
+                    "Scene._D3y__2_001.Empty_material",
+                    "Scene._D3y__2_001.UV0",
+                    "Scene._D3y__2_001.transform",
+                    "Scene._D3y__4",
+                    "Scene._D3y__4.Empty_material",
+                    "Scene._D3y__4.UV0",
+                    "Scene._D3y__4.transform"
+                ]
+            },
+            "rules": {
+                "rules": [
+                    {
+                        "$type": "UVsRule"
+                    }
+                ]
+            },
+            "id": "{12C79D68-CFC1-4AFB-93AE-934D4029496E}"
+        }
+    ]
+}

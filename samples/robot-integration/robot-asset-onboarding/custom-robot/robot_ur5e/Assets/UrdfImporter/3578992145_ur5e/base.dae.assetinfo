@@ -1,0 +1,30 @@
+{
+    "values": [
+        {
+            "$type": "{41DCBEAB-203C-4A05-96FA-98E1D8A96FA1} ImportGroup"
+        },
+        {
+            "$type": "{07B356B7-3635-40B5-878A-FAC4EFD5AD86} MeshGroup",
+            "name": "base",
+            "nodeSelectionList": {
+                "selectedNodes": [
+                    "Scene",
+                    "Scene.eSeries_UR5e_006",
+                    "Scene.eSeries_UR5e_006.Black",
+                    "Scene.eSeries_UR5e_006.transform",
+                    "Scene.eSeries_UR5e_013",
+                    "Scene.eSeries_UR5e_013.JointGrey",
+                    "Scene.eSeries_UR5e_013.transform"
+                ]
+            },
+            "rules": {
+                "rules": [
+                    {
+                        "$type": "UVsRule"
+                    }
+                ]
+            },
+            "id": "{C08EDF56-6FC3-4D89-A3A5-DC226214CFF9}"
+        }
+    ]
+}

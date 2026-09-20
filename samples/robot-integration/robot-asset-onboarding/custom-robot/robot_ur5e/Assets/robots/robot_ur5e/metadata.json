@@ -1,0 +1,13 @@
+{
+    "robot_type": "ur5e",
+    "record_topic": [
+        "/arm_controller/follow_joint_trajectory/_action/feedback",
+        "/arm_position_controller/commands",
+        "/joint_states",
+        "/hand_position_controller/commands",
+        "/hand_gripper_controller",
+        "/head_camera/camera_image_color",
+        "/external_camera/camera_image_color"
+    ]
+}
+

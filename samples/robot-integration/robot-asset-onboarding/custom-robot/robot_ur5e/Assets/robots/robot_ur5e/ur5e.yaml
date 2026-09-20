@@ -1,0 +1,26 @@
+fixed_base: base_link
+moveit_controller: arm_controller
+topic_controller:
+  arm:
+    topic_name: "/arm_position_controller/commands"
+    joint_names:
+    - "shoulder_pan_joint"
+    - "shoulder_lift_joint"
+    - "elbow_joint"
+    - "wrist_1_joint"
+    - "wrist_2_joint"
+    - "wrist_3_joint"
+  hand:
+    topic_name: "/hand_position_controller/commands"
+    joint_names:
+    - "left_finger_joint"
+    - "right_finger_joint"
+init_joints:
+  shoulder_pan_joint: 0.0
+  shoulder_lift_joint: -1.9373155
+  elbow_joint: 1.204277
+  wrist_1_joint: -0.9075712
+  wrist_2_joint: 4.694936
+  wrist_3_joint: -0.0872665
+  left_finger_joint: 0.0
+  right_finger_joint: 0.0

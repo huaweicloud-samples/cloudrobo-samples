@@ -1,0 +1,16 @@
+# 由 patch_moveit_config.py 自动生成。
+# 请勿手工修改；机器人配置发生变化后，请重新运行 patch_moveit_config.py 生成。
+schema_version: 1
+arm_type: single
+moveit_config_package: ur5e_config
+moveit_robot_name: umi
+moveit_demo_launch: demo_me.launch.py
+task_class: trajectory_gen_py.task.simple_pick_place_task.SimplePickPlaceTask
+arm_config:
+  planning_group: arm
+  planning_service_name: arm_move_pose_server
+  execution_service_name: arm_move_pose_execution_server
+  controller_topic_name: arm_position_controller/commands
+  base_link: base_link
+  tool_link: tool_link
+  gripper_controller: hand_gripper_controller

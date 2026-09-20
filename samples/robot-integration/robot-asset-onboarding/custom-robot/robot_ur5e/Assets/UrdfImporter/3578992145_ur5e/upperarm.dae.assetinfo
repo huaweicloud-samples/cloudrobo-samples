@@ -1,0 +1,48 @@
+{
+    "values": [
+        {
+            "$type": "{41DCBEAB-203C-4A05-96FA-98E1D8A96FA1} ImportGroup"
+        },
+        {
+            "$type": "{07B356B7-3635-40B5-878A-FAC4EFD5AD86} MeshGroup",
+            "name": "upperarm",
+            "nodeSelectionList": {
+                "selectedNodes": [
+                    "Scene",
+                    "Scene.eSeries_UR5e_009",
+                    "Scene.eSeries_UR5e_009.URBlue",
+                    "Scene.eSeries_UR5e_009.transform",
+                    "Scene.eSeries_UR5e_010",
+                    "Scene.eSeries_UR5e_010.JointGrey",
+                    "Scene.eSeries_UR5e_010.transform",
+                    "Scene.eSeries_UR5e_011",
+                    "Scene.eSeries_UR5e_011.Black",
+                    "Scene.eSeries_UR5e_011.transform",
+                    "Scene.eSeries_UR5e_012",
+                    "Scene.eSeries_UR5e_012.URBlue",
+                    "Scene.eSeries_UR5e_012.transform",
+                    "Scene.eSeries_UR5e_014",
+                    "Scene.eSeries_UR5e_014.LinkGrey",
+                    "Scene.eSeries_UR5e_014.transform",
+                    "Scene.eSeries_UR5e_017",
+                    "Scene.eSeries_UR5e_017.Black",
+                    "Scene.eSeries_UR5e_017.transform",
+                    "Scene.eSeries_UR5e_018",
+                    "Scene.eSeries_UR5e_018.JointGrey",
+                    "Scene.eSeries_UR5e_018.transform",
+                    "Scene.eSeries_UR5e_019",
+                    "Scene.eSeries_UR5e_019.Black",
+                    "Scene.eSeries_UR5e_019.transform"
+                ]
+            },
+            "rules": {
+                "rules": [
+                    {
+                        "$type": "UVsRule"
+                    }
+                ]
+            },
+            "id": "{E79341E2-FF45-48D9-A580-2F70ECDF9A41}"
+        }
+    ]
+}

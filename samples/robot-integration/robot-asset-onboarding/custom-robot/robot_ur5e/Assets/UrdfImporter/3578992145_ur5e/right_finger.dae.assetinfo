@@ -1,0 +1,43 @@
+{
+    "values": [
+        {
+            "$type": "{41DCBEAB-203C-4A05-96FA-98E1D8A96FA1} ImportGroup"
+        },
+        {
+            "$type": "{07B356B7-3635-40B5-878A-FAC4EFD5AD86} MeshGroup",
+            "name": "right_finger",
+            "nodeSelectionList": {
+                "selectedNodes": [
+                    "Scene",
+                    "Scene.Camera",
+                    "Scene.Light",
+                    "Scene.NONE_004",
+                    "Scene.NONE_004.Empty_material",
+                    "Scene.NONE_004.UV0",
+                    "Scene.NONE_004.transform",
+                    "Scene.NONE_005",
+                    "Scene.__1",
+                    "Scene.__1.UV0",
+                    "Scene.__1.transform",
+                    "Scene.__1.wire_240093000_001",
+                    "Scene.__12",
+                    "Scene.__12.Material__44",
+                    "Scene.__12.UV0",
+                    "Scene.__12.transform",
+                    "Scene.___3_______Y__a2_3____Y___D1",
+                    "Scene.___3_______Y__a2_3____Y___D1.Material__43",
+                    "Scene.___3_______Y__a2_3____Y___D1.UV0",
+                    "Scene.___3_______Y__a2_3____Y___D1.transform"
+                ]
+            },
+            "rules": {
+                "rules": [
+                    {
+                        "$type": "UVsRule"
+                    }
+                ]
+            },
+            "id": "{CE2A6925-F4FD-491B-940A-D226CCD697AB}"
+        }
+    ]
+}

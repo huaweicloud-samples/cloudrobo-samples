@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "my-parallel-gripper-r2c-transformers"
+version = "0.1.0"
+description = "Third-party R2C value transformers for a parallel gripper (fingers <-> stroke)"
+requires-python = ">=3.10"
+dependencies = [
+    "hw-r2c-sdk",
+]
+
+# ═════════════════════════════════════════════════════════════════════
+# Register these transformers so TransformerRegistry discovers them
+# automatically via the `r2c_sdk.transformers` entry_point group.
+#
+# Each dotted-string value points to an IValueTransformer SUBCLASS (not an
+# instance), e.g. "my_package:MyTransform".  The entry_point NAME is the
+# string users put in the `transform` field of a robot config YAML:
+#
+#     mapping:
+#       gripper_stroke:
+#         source: joint_states.position
+#         transform: my_gripper_fingers_to_stroke
+#
+# NOTE: if an entry_point name collides with a builtin transformer name,
+# the builtin always wins (see TransformerRegistry / build_transformer_registry).
+# ═════════════════════════════════════════════════════════════════════
+[tool.setuptools]
+py-modules = ["my_parallel_gripper_transformers"]
+
+[project.entry-points."r2c_sdk.transformers"]
+my_gripper_fingers_to_stroke = "my_parallel_gripper_transformers:MyGripperFingersToStrokeTransformer"
+my_gripper_stroke_to_fingers = "my_parallel_gripper_transformers:MyGripperStrokeToFingersTransformer"

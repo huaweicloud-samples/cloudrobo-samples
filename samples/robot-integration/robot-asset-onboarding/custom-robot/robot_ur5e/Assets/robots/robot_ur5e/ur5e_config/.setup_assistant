@@ -1,0 +1,25 @@
+moveit_setup_assistant_config:
+  urdf:
+    package: ur5e_description
+    relative_path: urdf/ur5e.urdf
+  srdf:
+    relative_path: config/umi.srdf
+  package_settings:
+    author_name: zhangheng
+    author_email: email_address
+    generated_timestamp: 1777296302
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
+      - velocity
+  modified_urdf:
+    xacros:
+      - control_xacro
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
+      - velocity

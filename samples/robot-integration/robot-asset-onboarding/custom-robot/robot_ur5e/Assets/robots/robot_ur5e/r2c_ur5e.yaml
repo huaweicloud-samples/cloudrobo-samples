@@ -1,0 +1,166 @@
+schema_version: "v2.1"
+
+runtime:
+  # Action execution frequency (Hz); also drives the observation publish check frequency. Recommended 10-30 Hz
+  publish_hz: 10.0
+  # Maximum runtime in seconds; 0 means run forever, stop with Ctrl+C
+  max_duration_s: 0.0
+  # dry_run=true does not execute inferred actions but still sends observations.
+  # Useful for debugging when the robot should not actually move but real observations are still needed.
+  dry_run: false
+  # Timeout (seconds) to wait for an action after publishing observations;
+  # re-publish observations after timeout. Recommended >= 30 s for weak networks / large-model scenarios.
+  action_response_timeout_s: 30.0
+  # Max action steps enqueued per chunk; the rest are dropped. -1 means accept all
+  max_enqueue_actions_per_chunk: -1
+  # Whether to enable action chunk alignment (to avoid trajectory jumps)
+  enable_action_chunk_alignment: false
+  # Number of initial observations to skip at startup (let the action queue fill up before executing)
+  skip_initial_observations: 1
+
+  # ---- Async request fusion config -------------------------------------------------
+  async_request:
+    enabled: false
+
+    publish_trigger_threshold: 0
+
+    fusion:
+      strategy: replace
+      window_size: 10
+      # state_types:  # Example (adjust by actual DOF):
+      #   - joint_angle
+      #   - joint_angle
+      # state_type_order:
+      #   euler: rpy
+      #   quaternion: wxyz
+  # ---- end async_request -----------------------------------------------------------
+  # Keyboard control: Space = pause/resume, h = go home (while paused), e = graceful exit
+  keyboard_control:
+    enabled: true
+    # keymap:  # Custom key mapping (optional)
+
+hardware:
+  type: "ros2"                  # Hardware adapter type
+  config:                       # ROS2 config
+    node_name: "r2c_ur5e_ros"
+    spin_timeout_sec: 0.05
+    auto_spin: True
+    init_joints:
+      enabled: true
+      delay_sec: 1.0
+      entries:
+        - publisher: arm          # msg_type = std_msgs.msg.Float64MultiArray
+          message:
+            data: [0.0, -1.9373155, 1.204277, -0.9075712, 4.694936, -0.0872665]   # 6 关节初始角度
+        - publisher: hand         # msg_type = std_msgs.msg.Float64MultiArray
+          message:
+            data: [0.0, 0.0]     # 夹爪两指初始开度
+    subscriptions:               # Subscription config
+      joint_states:
+        topic: /joint_states
+        msg_type: sensor_msgs.msg.JointState
+        qos: 10
+        max_update_hz: 10
+        store_as: joint_states
+        include_fields: ["name", "position", "velocity", "effort"]
+        field_aliases:
+          name: names
+        transforms:
+          - select_joints_by_name:
+              names:
+                - shoulder_pan_joint
+                - shoulder_lift_joint
+                - elbow_joint
+                - wrist_1_joint
+                - wrist_2_joint
+                - wrist_3_joint
+                - left_finger_joint
+                - right_finger_joint
+      head:                     # Head camera (single main camera, 640x480)
+        topic: /head_camera/camera_image_color
+        msg_type: sensor_msgs.msg.Image
+        qos: 10
+        store_as: head
+        store_raw_message: true
+      external:                     # Head camera (single main camera, 640x480)
+        topic: /external_camera/camera_image_color
+        msg_type: sensor_msgs.msg.Image
+        qos: 10
+        store_as: external
+        store_raw_message: true
+    command_publishers:          # Publisher config
+      arm:
+        topic: "/arm_position_controller/commands"
+        msg_type: std_msgs.msg.Float64MultiArray
+        qos: 10
+      hand:
+        topic: "/hand_position_controller/commands"
+        msg_type: std_msgs.msg.Float64MultiArray
+        qos: 10
+    action_targets:
+      arm: arm
+      hand: hand
+
+translator:
+  type: "configurable"
+
+device_to_r2c:                   # Device data -> R2C format mapping
+  task: "move arm to target position"    # Task description
+  mappings:
+    # Joint names (using UR5e standard names, 8 joints total: 6 arm + 2 fingers)
+    - target_key: "joint_states.names"
+      default: ["shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint",
+                "wrist_1_joint", "wrist_2_joint", "wrist_3_joint",
+                "gripper"]
+
+    # Joint position data
+    - target_key: "joint_states.position"
+      source: streams.joint_states.position
+      transforms:
+        - array_to_list
+        - slice:
+            start: 0
+            end: 6
+
+    - target_key: "joint_states.position"
+      target_index: 6
+      source: streams.joint_states.position
+      transforms:
+        - array_to_list
+        - slice:
+            start: 6
+            end: 8
+        - my_gripper_fingers_to_stroke
+
+    # Camera image - head camera
+    - target_key: "images.color.head"
+      source_path: "streams.head"
+      transforms: ros_image_to_jpeg
+
+    # Camera image
+    - target_key: "images.color.external"
+      source_path: "streams.external"
+      transforms: ros_image_to_jpeg
+
+r2c_to_device:                   # R2C format -> device command mapping
+  mappings:
+    # Arm joint control (6 DOF)
+    - target: "commands_by_publisher.arm.data"
+      source: "joint_states.position"
+      use_assign_dotted: true
+      required: true
+      transforms:
+        - slice:
+            start: 0
+            end: 6
+        - list_to_ros_float64_multi_array
+
+    # Gripper control - expand single value to 2 finger joints
+    - target: "commands_by_publisher.hand.data"
+      source: "joint_states.position"
+      source_index: 6
+      use_assign_dotted: true
+      required: true
+      transforms:
+        - my_gripper_stroke_to_fingers
+        - list_to_ros_float64_multi_array
