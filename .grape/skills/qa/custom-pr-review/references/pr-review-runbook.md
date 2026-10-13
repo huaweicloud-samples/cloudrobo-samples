@@ -131,10 +131,12 @@ echo "$SCAN_OUT" | grep -c ':'          # 行数 = 命中总数（stderr 的 HIT
 
 ### Step 4 · 发布检视评论（必做）
 ```bash
+# 发布 PR 级检视评论：用 issues comments 端点（GitHub 上 PR 与 Issue 同号）
 # body 组装示例（命中>0；命中=0 时去掉敏感词段落；换行用 \n 转义）
-grape git-repo pulls comments create --owner "$REPO_OWNER" --repo "$REPO_NAME" --number "$PR_NUMBER" \
+grape git-repo issues comments create --owner "$REPO_OWNER" --repo "$REPO_NAME" --number "$PR_NUMBER" \
   --json '{"body":"[QA Agent] <review_conclusion 正文>\n\n---\n### 敏感词校验结果\n\n| 文件 | 行号 | 命中词 |\n|------|------|--------|\n| <file> | <line> | <word> |\n\n> ⚠️ 以上为疑似敏感信息命中（含规则示例自引用），仅提示不阻断合入；命中 <hit_count> 处。"}'
 ```
+- ⚠️ `git-repo pulls comments create` 映射的是**行级评审评论**端点（GitHub `POST /pulls/{n}/comments`），仅传 body 实测返回 `422`（缺 `commit_id`/`path`/`position`）→ 本技能发布 PR 级总结评论一律用 `issues comments create`。
 - 发布后核对返回的评论 id/URL，确认评论已落地（失败重试 ≤3 次，仍失败 → 评论/收尾如实说明）。
 
 ### Step 5 · 交棒规则（默认不交棒；sre 仅条件触发）
@@ -187,6 +189,7 @@ grape tasks complete --json '{
 | `pulls files` 5xx | 直接重试 `pulls files` ≤3 次（间隔递增）；仍失败用 `grape git ls-remote` 核对 |
 | `contents` 404（词表不存在） | 正常 → 仅用内置词表继续扫描 |
 | 脚本报 `JSON 解析失败`/`Expecting value` | `PR_FILES_JSON` 为空或被日志污染 → 重拉 `pulls files --json-out`；确认是 `--json-out` 而非文本输出 |
+| `pulls comments create` 返回 422 | 该命令为行级评审评论端点，缺 `commit_id`/`path`/`position` → 改用 `issues comments create --number "$PR_NUMBER"` 发布 PR 级评论 |
 | 管道喂入但脚本读到空 stdin | 误用了 `python3 - <<PY` heredoc 形式（heredoc 覆盖管道）→ 改用本 Step 2 的 `python3 -c` 形式 |
 | `python3: command not found` | 按 `sensitive-scan-guide.md` §4 的 POSIX awk 参考实现降级扫描；两实现行号不一致时以 guide §4 口径复核 |
 | IP 误报版本号 | 报告标注「疑似 IP」；版本号模式（如 `1.2.3.4`）仍报告，由审查者判断 |

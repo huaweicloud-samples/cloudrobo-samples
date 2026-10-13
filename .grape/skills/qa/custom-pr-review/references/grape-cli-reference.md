@@ -32,7 +32,8 @@
 | `git-repo pulls get --owner --repo --number --json-out` | PR 元信息 | 只读 |
 | `git-repo pulls files --owner --repo --number --json-out` | PR 变更文件清单（含 patch/diff） | 只读 |
 | `git-repo pulls comments list --owner --repo --number --json-out` | 已有评论 | 只读 |
-| `git-repo pulls comments create --owner --repo --number --json '{"body":"..."}'` | 发布检视评论（含敏感词报告） | **变更** |
+| `git-repo issues comments create --owner --repo --number --json '{"body":"..."}'` | 发布 PR 级检视评论（GitHub 上 PR 与 Issue 同号；含敏感词报告） | **变更** |
+| `git-repo pulls comments create --owner --repo --number --json '{"body":"..."}'` | 行级评审评论端点（GitHub `POST /pulls/{n}/comments`），仅传 body 返回 422（需 `commit_id`/`path`/`position`）→ **本技能不使用** | **变更** |
 | `git-repo contents --owner --repo --path --raw` | 读取文件内容/词表文件 | 只读 |
 | `git-repo tree --owner --repo --depth single --json-out` | 仓库目录结构 | 只读 |
 
