@@ -1,6 +1,6 @@
 ---
 name: custom-pr-review
-version: 1.0.0
+version: 1.0.1
 description: |
   PR 检视敏感词校验技能。对 PR 变更文件内容扫描内部域名+IP，命中时随检视评论报告文件+行号。
   ①拉取 PR diff 变更文件 → ②扫描内置词表+IP 正则 → ③命中清单附加到检视评论末尾。
@@ -21,6 +21,7 @@ tools:
    ```bash
    grape --version
    ```
+   - 未装或版本 < 0.3.2 → 自行安装/升级：`pip install git+https://gitcode.com/grape-dev/grape-cli.git`，装好后再验证一次。
 2. **刷新契约到最新**：
    ```bash
    grape refresh
@@ -39,8 +40,10 @@ tools:
 | `REPO_FULL_NAME` | `owner/repo` 仓库全名 | A2A payload |
 | `REPO_OWNER` | 仓库属主 | `--owner "$REPO_OWNER"` |
 | `REPO_NAME` | 仓库名 | `--repo "$REPO_NAME"` |
+| `ACCOUNT` | **个人账号（webhook 触发人 `actor`，与仓库属主解耦）** | A2A payload `account` 字段（一般不用作 `--owner`） |
 | `ISSUE_NUMBER` | Issue 编号 | A2A payload |
 | `PR_NUMBER` | 当前 PR 编号 | `--number "$PR_NUMBER"` |
+| `GRAPE_WORK_BRANCH` | 目标合入分支/工作基线（缺省取仓库默认分支） | 建 PR 的 `base` |
 | `GRAPE_SCENE_ID` | 场景 ID | A2A 前校验节点 |
 | `BOT_USERNAME` | Bot 用户名 | 评论身份 |
 | `AGENT_NAME` | Agent 显示名 | 评论前缀 `[QA Agent]` |

@@ -34,12 +34,15 @@ grape git-repo pulls files --owner "$REPO_OWNER" --repo "$REPO_NAME" --number "$
 > 详细规则见 `references/sensitive-scan-guide.md`，此处给执行命令。
 
 ```bash
-# 检查仓库是否有自定义词表文件
-grape git-repo contents --owner "$REPO_OWNER" --repo "$REPO_NAME" --path "docs/sensitive-words.txt" --raw 2>/dev/null || true
+# 拉取 PR 变更文件 JSON（供扫描脚本使用）
+PR_DIFF_JSON=$(grape git-repo pulls files --owner "$REPO_OWNER" --repo "$REPO_NAME" --number "$PR_NUMBER" --json-out)
+
+# 读取仓库自定义词表（统一用 grape git-repo contents --raw）
+CUSTOM_WORDS_RAW=$(grape git-repo contents --owner "$REPO_OWNER" --repo "$REPO_NAME" --path "docs/sensitive-words.txt" --raw 2>/dev/null || true)
 ```
 
 扫描逻辑（bash 实现，逐文件逐行）：
-1. **合并词表**：内置词表（`huawei.com` `codehub` `myhuaweicloud.com`）+ 仓库 `docs/sensitive-words.txt`（存在则逐行追加，`#` 开头跳过）。
+1. **合并词表**：内置词表（`huawei.com` `codehub` `myhuaweicloud.com`）+ 仓库 `docs/sensitive-words.txt`（通过 `grape git-repo contents --raw` 读取，存在则逐行追加，`#` 开头跳过）。
 2. **IP 正则**：IPv4 `\b(?:\d{1,3}\.){3}\d{1,3}\b` + IPv6 `\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b`（简化全格式）。
 3. **逐文件扫描**：对每个变更文件的 patch 新增行（`+` 开头），按行扫描词表（子串匹配，大小写不敏感）+ IP 正则。
 4. **记录命中**：`(filename, line_number, matched_word)` 三元组。
@@ -48,10 +51,10 @@ grape git-repo contents --owner "$REPO_OWNER" --repo "$REPO_NAME" --path "docs/s
 # 扫描脚本（可直接执行）
 SCAN_RESULTS=$(bash -c '
 BUILTIN_WORDS="huawei.com codehub myhuaweicloud.com"
-# 尝试读取仓库自定义词表（如果已经拉取到本地）
+# 从 grape git-repo contents --raw 读取的自定义词表
 CUSTOM_WORDS=""
-if [ -f "docs/sensitive-words.txt" ]; then
-  CUSTOM_WORDS=$(grep -v "^#" docs/sensitive-words.txt | grep -v "^$" | tr "\n" " ")
+if [ -n "$CUSTOM_WORDS_RAW" ]; then
+  CUSTOM_WORDS=$(echo "$CUSTOM_WORDS_RAW" | grep -v "^#" | grep -v "^$" | tr "\n" " ")
 fi
 ALL_WORDS="$BUILTIN_WORDS $CUSTOM_WORDS"
 
@@ -59,7 +62,7 @@ ALL_WORDS="$BUILTIN_WORDS $CUSTOM_WORDS"
 IPV4_RE="\b([0-9]{1,3}\.){3}[0-9]{1,3}\b"
 IPV6_RE="\b([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b"
 
-# 逐文件扫描 PR diff（从 pulls files 的 JSON 输出解析）
+# 逐文件扫描 PR diff（从 PR_DIFF_JSON 解析）
 # 命中输出格式: filename:lineno:matched_word
 echo "$PR_DIFF_JSON" | jq -r ".[] | .filename, .patch" | \
   awk -v words="$ALL_WORDS" -v ipv4="$IPV4_RE" -v ipv6="$IPV6_RE" "
@@ -133,7 +136,7 @@ grape tasks complete --json '{
 |------|------|
 | `PR_NUMBER` 未注入 | 从 `events detail` payload 解析；仍缺失 → 评论说明 + next_step=reply_comment |
 | `pulls files` 返回空 | PR 无变更文件 → 评论说明 + 收尾（命中=0） |
-| `pulls files` 5xx | `grape tasks wait` 重试；仍失败用 `grape git ls-remote` 核对 |
+| `pulls files` 5xx | 直接重试 `pulls files` ≤3 次（间隔递增）；仍失败用 `grape git ls-remote` 核对 |
 | `contents` 404（词表不存在） | 正常——仅用内置词表，继续扫描 |
 | IP 正则误报版本号 | 报告标注「疑似 IP」；版本号模式（如 `1.2.3.4`）仍报告，由审查者判断 |
 

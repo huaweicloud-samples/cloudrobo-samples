@@ -84,7 +84,7 @@ secret.local
 ### 行号计算逻辑
 1. 从 `@@ +new_start,new_lines @@` 提取 `new_start`。
 2. 遍历 patch 行：
-   - `+` 开头（非 `+++`）→ 当前行号 = `new_start`，命中则记录；`new_start` 不递增（新增行不占原文件行号，但占新文件行号 → 实际 `new_start` 应递增）。
+   - `+` 开头（非 `+++`）→ 当前行号 = `new_start`，命中则记录；记录后 `new_start++`（新增行占新文件行号，行号递增）。
    - 空格开头 → `new_start++`。
    - `-` 开头（非 `---`）→ 不递增 `new_start`。
 
