@@ -118,7 +118,7 @@ PR 检视时对变更文件**新增行**做敏感词校验（内部域名词表 
      "issue_summary": "敏感词校验完成 | PR #'"${PR_NUMBER}"' | 命中 {hit_count} 处 | 未阻断"
    }'
    ```
-   - `{hit_count}` = runbook Step 2 的命中总数（`SCAN_OUT` 行数），与 `HITS=` 对账；命中=0 时填 0，仍照常收尾。
+   - `{hit_count}` = runbook Step 2 赋值的 `$HIT_COUNT`（`SCAN_OUT` 行数，与 `HITS=` 对账）；命中=0 时填 0，仍照常收尾。
 
 ## 参考
 

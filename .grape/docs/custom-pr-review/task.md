@@ -16,8 +16,9 @@
 | 10 | 交棒（条件触发） | 检视流程内不交棒；仅 PR 合并验证（`pull_request_merged`）通过后交棒 sre | ✅（规则已落地，当前非合并事件故不交棒） |
 | 11 | tasks complete | 结构化字段真实填充（`next_step=done`） | ✅ |
 | 12 | 按 QA 复审意见修复（1 Critical + 7 Required + 1 Nit） | 逐项修复并在 PR 评论给出可核验证据 | ✅ |
-| 13 | 扫描实现可执行性实测 | runbook Step 2 逐字复制执行，对 PR #5 输出命中明细、与独立实现计数一致 | ✅（35 处，与 QA 计数一致） |
+| 13 | 扫描实现可执行性实测 | runbook Step 2 逐字复制执行，对 PR #5 输出命中明细、与独立实现计数一致 | ✅（head `9d6b1fd` 实测 32 处，与 QA 三次独立实测一致；更早提交 `03a852a` 时为 35 处，差异源于提交间文档行增减） |
 | 14 | 行号口径实测（空新增行） | 修正实现 2/3/4 行号正确；旧 `/^\+[^+]/` 复现偏小 1 的缺陷 | ✅ |
+| 15 | HIT_COUNT 变量赋值（QA 复审 6143937627 Required） | Step 2 赋值 `HIT_COUNT=$(printf '%s\n' "$SCAN_OUT" \| grep -c ':' \|\| true)`，Step 5/6 引用改为该赋值来源 | ✅（实测 HIT_COUNT=32，与 HITS= 对账一致；零命中样例返回 0 不中断） |
 
 ## 本轮修复对照（QA 复审 6141480826）
 
@@ -33,6 +34,14 @@
 | PR body `Closes` 语法非法 | 🔴 Required | PR #5 body 更新为 `Closes #3` |
 | task.md 自检项状态过时 | ⚪ Nit | task.md 全表状态更新为实际值并补本轮记录 |
 | tools 缺 grape | 🟢 Optional | tools 补 `grape` 与 `python3`（扫描实现依赖） |
+
+## 本轮修复对照（QA 复审 6143937627，head `9d6b1fd`）
+
+| 审查项 | 级别 | 修复 |
+|--------|------|------|
+| runbook `HIT_COUNT` 变量从未赋值，Step 5/6 恒报命中 0 | 🔴 Required | Step 2 增加赋值行 `HIT_COUNT=$(printf '%s\n' "$SCAN_OUT" \| grep -c ':' \|\| true)`；Step 5 头注、Step 6 头注与 Step 3 占位符表、SKILL.md `{hit_count}` 定义统一注明来源为该赋值 |
+| 「实测 35 处命中」声明在当前 head 不可复现（实测 32 处） | ⚪ Nit | task.md #13 更新为「head `9d6b1fd` 实测 32 处」，并标注 35 处系更早提交 `03a852a` 时的实测值、差异源于提交间文档行增减；PR body 同步修正 |
+| `grep -c ':'` 零命中退出码 1 可能在 `set -e` 环境中断 | ⚪ Nit | 赋值行内联 `\|\| true`（随 Required 一并修复）；实测零命中样例返回 0 且不中断 |
 
 ## 验收映射
 

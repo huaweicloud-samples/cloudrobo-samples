@@ -95,7 +95,8 @@ print("HITS=%d" % len(rows), file=sys.stderr)
 ' "$CUSTOM_WORDS_RAW")
 
 echo "$SCAN_OUT"                       # 命中明细：文件:行号:命中词
-echo "$SCAN_OUT" | grep -c ':'          # 行数 = 命中总数（stderr 的 HITS= 仅作对账）
+HIT_COUNT=$(printf '%s\n' "$SCAN_OUT" | grep -c ':' || true)   # 存入变量：Step 5/6 引用；|| true 防零命中时 grep 退出码 1 中断（set -e）
+echo "HIT_COUNT=$HIT_COUNT"           # 与脚本 stderr 的 HITS= 对账（两者必须相等，不等则以 HITS= 复核）
 ```
 - ⚠️ **禁止写成 `python3 - <<PY ... PY` 并同时用管道喂 JSON**：heredoc 会覆盖 stdin，脚本读到空输入（历史缺陷）；本步固定用 `python3 -c '...'` + 管道。
 - 命中数按 `(文件, 行号, 命中词)` 去重；词表子串匹配大小写不敏感；词表项与 IP 均可能重复命中同一行，去重后即为报告行。
@@ -108,7 +109,7 @@ echo "$SCAN_OUT" | grep -c ':'          # 行数 = 命中总数（stderr 的 HIT
 | 占位符 | 来源（取值方式） | 缺失/例外 |
 |--------|-----------------|----------|
 | `{review_conclusion}` | 本技能本次对 PR 的审查结论段落（Agent 依变更文件审查结果生成：配置检查 / 变更摘要 / 审查结论三小节）；**同一条评论内先结论、后敏感词段落** | 无法生成时只发敏感词段落并注明「审查结论未生成」 |
-| `{hit_count}` | Step 2 的命中总数（`SCAN_OUT` 行数，与 `HITS=` 对账） | 命中=0 → 不输出敏感词段落 |
+| `{hit_count}` | Step 2 赋值的 `$HIT_COUNT`（`SCAN_OUT` 行数，与脚本 stderr `HITS=` 对账后使用） | 命中=0 → 不输出敏感词段落 |
 | `{hit_rows}` | Step 2 每行 `文件:行号:命中词` 转 Markdown 表格行（`| {file} | {line} | {word} |`） | 命中=0 → 不输出 |
 | `{file}` / `{line}` / `{word}` | 上一条表格行内的字段槽位，逐条替换为 Step 2 输出行的文件名 / 行号 / 命中词 | — |
 
@@ -140,7 +141,7 @@ grape git-repo issues comments create --owner "$REPO_OWNER" --repo "$REPO_NAME" 
 - 发布后核对返回的评论 id/URL，确认评论已落地（失败重试 ≤3 次，仍失败 → 评论/收尾如实说明）。
 
 ### Step 5 · 交棒规则（默认不交棒；sre 仅条件触发）
-> ⚠️ 本技能输出为提示性校验（不阻断、无「通过/不通过」语义），**检视流程内不交棒 sre**：sre 交办仅应在 PR 合并验证（`pull_request_merged`）通过后触发。
+> ⚠️ 本技能输出为提示性校验（不阻断、无「通过/不通过」语义），**检视流程内不交棒 sre**：sre 交办仅应在 PR 合并验证（`pull_request_merged`）通过后触发。下方 `${HIT_COUNT}` 为 Step 2 赋值的命中总数。
 
 ```bash
 # 条件判定：仅合并事件且合并验证通过才交棒，其余一律不交棒
@@ -165,6 +166,8 @@ grape a2a handoff --json '{
 - A2A 失败重试 ≤3 次；仍失败 → 评论说明需人工介入。
 
 ### Step 6 · 任务完成流程（必做）
+> `${HIT_COUNT}` 来自 Step 2 的赋值（`grep -c ':' || true`），发布评论前必须已完成 Step 2；`:-0` 兜底仅防变量意外为空，正常执行下不会触发。
+
 ```bash
 grape tasks complete --json '{
   "result_text": "结论：PR #'"$PR_NUMBER"' 敏感词校验完成，命中 '"${HIT_COUNT:-0}"' 处，已随检视评论报告（未阻断）。",
