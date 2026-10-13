@@ -1,11 +1,13 @@
 ---
 name: custom-pr-review
-version: 1.0.1
+version: 1.1.0
 description: |
-  PR 检视敏感词校验技能。对 PR 变更文件内容扫描内部域名+IP，命中时随检视评论报告文件+行号。
+  PR 检视敏感词校验技能。对 PR 变更文件新增行扫描内部域名+IP，命中时随检视评论报告文件+行号。
   ①拉取 PR diff 变更文件 → ②扫描内置词表+IP 正则 → ③命中清单附加到检视评论末尾。
 tools:
   - bash
+  - grape
+  - python3
 ---
 
 ## 安全硬约束（必须遵守）
@@ -17,52 +19,55 @@ tools:
 
 ## Prerequisites（执行前必检，通过后才进入处理流程）
 
-1. **grape CLI 版本满足（必须 ≥ 0.3.2）**：
-   ```bash
-   grape --version
-   ```
+1. **grape CLI 版本满足（必须 ≥ 0.3.2）**：`grape --version`
    - 未装或版本 < 0.3.2 → 自行安装/升级：`pip install git+https://gitcode.com/grape-dev/grape-cli.git`，装好后再验证一次。
-2. **刷新契约到最新**：
+2. **刷新契约到最新**：`grape refresh`
+3. **认证与运行时变量就绪**（只校验 A 类变量）：
    ```bash
-   grape refresh
+   echo "token=${GRAPE_SESSION_TOKEN:+ok} owner=$REPO_OWNER repo=$REPO_NAME pr=${PR_NUMBER:-MISSING}"
    ```
-3. **认证与环境变量就绪**：
-   ```bash
-   echo "token=${GRAPE_SESSION_TOKEN:+ok} owner=$REPO_OWNER repo=$REPO_NAME pr=${PR_NUMBER:-MISSING} work=${GRAPE_WORK_BRANCH:-main}"
-   ```
+4. **python3 就绪**（扫描实现依赖）：`python3 -V`
 
-## 环境变量（服务端已注入，直接使用）
+## 环境变量
+
+> ⚠️ 分两类：**A 类**为检视流程必需（缺失则停止并说明，不降级）；**B 类**仅特定事件/场景注入，**不得假定其存在**，缺失按降级规则跳过、不中断检视。`GRAPE_WORK_BRANCH` 为开发（coding）任务注入，本技能不建 PR、**不使用**。
+
+**A 类（检视流程必需）**
 
 | 变量 | 语义 | 用途 |
 |------|------|------|
-| `GRAPE_SERVER_URL` | 服务端地址 | `grape` 自动读取 |
-| `GRAPE_SESSION_TOKEN` | 会话级临时 token（`tk_`） | `grape` 自动认证 |
-| `REPO_FULL_NAME` | `owner/repo` 仓库全名 | A2A payload |
+| `GRAPE_SERVER_URL` / `GRAPE_SESSION_TOKEN` | 服务端地址 / 会话级 token（`tk_`） | `grape` 自动读取与认证 |
+| `REPO_FULL_NAME` | `owner/repo` 仓库全名 | `--owner`/`--repo` 取参、A2A payload `repository` |
 | `REPO_OWNER` | 仓库属主 | `--owner "$REPO_OWNER"` |
 | `REPO_NAME` | 仓库名 | `--repo "$REPO_NAME"` |
-| `ACCOUNT` | **个人账号（webhook 触发人 `actor`，与仓库属主解耦）** | A2A payload `account` 字段（一般不用作 `--owner`） |
-| `ISSUE_NUMBER` | Issue 编号 | A2A payload |
 | `PR_NUMBER` | 当前 PR 编号 | `--number "$PR_NUMBER"` |
-| `GRAPE_WORK_BRANCH` | 目标合入分支/工作基线（缺省取仓库默认分支） | 建 PR 的 `base` |
-| `GRAPE_SCENE_ID` | 场景 ID | A2A 前校验节点 |
-| `BOT_USERNAME` | Bot 用户名 | 评论身份 |
-| `AGENT_NAME` | Agent 显示名 | 评论前缀 `[QA Agent]` |
+
+**B 类（仅特定事件/场景注入）**
+
+| 变量 | 注入条件 | 用途 / 缺失降级 |
+|------|---------|----------------|
+| `ISSUE_NUMBER` | 关联 Issue 的流水线任务 | 仅 `events detail` 读上下文；缺失或读不到时跳过，不写入 A2A payload |
+| `ACCOUNT` | webhook 触发人存在时 | 仅合并后交棒 sre 的 A2A `account`；缺失则不填该字段 |
+| `GRAPE_SCENE_ID` | 场景绑定任务 | 仅交棒前场景节点核验；缺失则以 `scenes detail` 实返结果判定，不假定节点存在 |
+| `AGENT_NAME` / `BOT_USERNAME` | 按任务类型 | 评论前缀固定 `[QA Agent]`，命令不依赖二者 |
 
 ## 定位
 
-PR 检视时对变更文件内容做敏感词校验（内部域名词表 + IP 正则），命中则随检视评论报告命中位置（文件+行号），不影响原审查结论、不阻断合入。审查完成后 A2A 交棒 **sre** agent（发布/部署）。
+PR 检视时对变更文件**新增行**做敏感词校验（内部域名词表 + IP 正则），命中则随检视评论报告命中位置（文件+行号），不影响原审查结论、不阻断合入。
+
+- **任务边界**：只做「校验 + 评论报告」，任务以发布评论 + `grape tasks complete`（`next_step=done`）收尾；**检视流程内不交棒 sre**——sre 交办仅在 PR 合并验证（`pull_request_merged`）通过后触发（见 runbook Step 5）。
+- **技能接线**：本技能为仓库级技能资产（`.grape/skills/qa/custom-pr-review/`），需经 sre 环节 `grape skills upload --scope repo` 注册到平台技能库后，方能被本仓库任务按 `agent_type=qa` 加载；落库与核验链路见 `docs/custom-pr-review/plan.md`「接线机制」。
 
 ## 评论规范
 
-- PR 评论 body 必须以 `[QA Agent]` 开头。
-- 敏感词校验结果附加到检视评论末尾「敏感词校验结果」段落；未命中不附加。
+- PR 评论 body 必须以 `[QA Agent]` 开头；审查结论与敏感词段落**合并为同一条评论**（命中=0 时不附加敏感词段落）。
 - 引用原文：`> {用户原文}\n\n[QA Agent] {回复}`
 
 ## 处理流程
 
-> ⚠️ **先读 `references/pr-review-runbook.md`**：按走查表逐步骤执行（Step 0 前置+读上下文 → 1 拉 PR 变更文件 → 2 扫描敏感词 → 3 组装评论 → 4 发布评论 → 5 A2A 交棒 sre → 6 收尾）。每个步骤的命令 runbook 已给出，**照抄执行，不要 `grape --help` / `grape commands` 逐条探索**。
+> ⚠️ **先读 `references/pr-review-runbook.md`**：按走查表逐步骤执行（Step 0 前置+读上下文 → 1 拉 PR 变更文件 → 2 扫描敏感词 → 3 组装评论 → 4 发布检视评论 → 5 交棒规则（默认不交棒） → 6 收尾）。命令 runbook 已给出，**照抄执行，不要 `grape --help` / `grape commands` 逐条探索**。
 >
-> ⚠️ **本技能收尾一律用 `grape tasks complete`（情形一）**：最后一步必须调用 `grape tasks complete` 自报完成，调完即结束。
+> ⚠️ **收尾一律用 `grape tasks complete`**：调完即结束。
 
 敏感词校验规则详见 `references/sensitive-scan-guide.md`（内置词表 / IP 正则 / 词表扩展 / diff 行号定位 / 评论格式）。
 
@@ -71,12 +76,10 @@ PR 检视时对变更文件内容做敏感词校验（内部域名词表 + IP �
 | 规则 | 说明 |
 |------|------|
 | 内置词表 | `huawei.com` `codehub` `myhuaweicloud.com`（子串匹配，大小写不敏感） |
-| IP 正则 | IPv4 + IPv6，含公网/内网；加边界约束减少版本号误报 |
-| 词表扩展 | 仓库 `docs/sensitive-words.txt` 存在则逐行读取合并（追加到内置词表） |
-| 校验范围 | 仅 PR 变更文件内容（新增行），不查 PR 标题/描述 |
-| 命中输出 | `(文件路径, 行号, 命中词)` 三元组列表 |
-| 命中动作 | 附加到检视评论末尾；未命中不附加 |
-| 行号定位 | diff 新行号（与 PR 变更视图一致） |
+| IP 正则 | IPv4 + IPv6（含公网/内网）；命中标注「疑似 IP」 |
+| 词表扩展 | 仓库 `docs/sensitive-words.txt` 存在则逐行合并（`#` 注释、空行跳过） |
+| 校验范围 | 仅 PR 变更文件新增行（`+` 开头且非 `+++`，含纯 `+` 空行），不查 PR 标题/描述 |
+| 命中输出 / 动作 | `(文件路径, 行号, 命中词)` 三元组（行号 = diff 新文件行号）；命中>0 附加到检视评论末尾，命中=0 不附加 |
 
 ## 操作边界
 
@@ -84,10 +87,10 @@ PR 检视时对变更文件内容做敏感词校验（内部域名词表 + IP �
 |------|------|
 | 按 runbook 走查表逐步执行 | ✅ **必须做** |
 | 拉 PR diff 变更文件 + 扫描敏感词 | ✅ **必须做** |
-| 命中时附加检视评论报告 | ✅ **必须做** |
-| 未命中时不附加报告 | ✅ **必须做** |
+| 命中时附加检视评论报告；未命中时不附加报告 | ✅ **必须做** |
 | 词表经仓库文件扩展（合并） | ✅ **必须做** |
-| A2A 交棒 sre agent | ✅ **必须做** |
+| 检视完成后评论 + `tasks complete`（`next_step=done`）收尾 | ✅ **必须做** |
+| A2A 交棒 sre | ⚠️ **仅条件触发**（PR 合并验证 `pull_request_merged` 通过后），检视流程内禁止 |
 | 阻断 PR 合入 / 作为门禁 | ❌ **禁止** |
 | 校验 PR 标题/描述 | ❌ **禁止** |
 | 编造不存在的命令/参数 | ❌ **禁止** |
@@ -95,28 +98,27 @@ PR 检视时对变更文件内容做敏感词校验（内部域名词表 + IP �
 
 ## 硬约束
 
-- 敏感词命中仅评论报告，不阻断合入、不作为门禁
-- 校验范围仅 PR 变更文件内容（不查标题/描述）
-- 词表内置可扩展（仓库 `docs/sensitive-words.txt` 追加/覆盖）
-- 评论 body 以 `[QA Agent]` 开头
-- 建 PR 的 `base` 用 `$GRAPE_WORK_BRANCH`（不硬编码 main）
+- 敏感词命中仅评论报告，不阻断合入、不作为门禁、不改变原审查结论
+- 校验范围仅 PR 变更文件新增行（`+` 开头且非 `+++`，含纯 `+` 空行）
+- 词表内置可扩展（仓库 `docs/sensitive-words.txt` 逐行追加，去重）
+- 评论 body 以 `[QA Agent]` 开头；结论与敏感词段落合并为同一条评论
+- 检视流程内不交棒 sre；sre 交办仅 `pull_request_merged` 合并验证通过后触发
 
 ## 任务完成流程（必做）
 
-完成全部业务动作后，依次执行：
-
 1. **输出分析摘要**：PR 编号 + 变更文件数 + 命中数 + 评论发布结果
-2. **调用 `grape tasks complete` 自报完成（必做）**：
+2. **调用 `grape tasks complete` 自报完成**：
    ```bash
    grape tasks complete --json '{
-     "result_text": "结论：PR #'"${PR_NUMBER}"' 敏感词校验完成，命中 {n} 处，已随检视评论报告。",
-     "next_step": "a2a_sre",
-     "actions": ["拉取 PR diff", "扫描敏感词", "组装评论", "发布检视评论", "A2A 交棒 sre"],
-     "conclusion": "PR #'"${PR_NUMBER}"' 敏感词校验完成，命中 {n} 处",
-     "artifacts": ["PR #'"${PR_NUMBER}"'", "检视评论"],
-     "issue_summary": "敏感词校验完成 | PR #'"${PR_NUMBER}"' | 命中 {n} 处 | A2A sre"
+     "result_text": "结论：PR #'"${PR_NUMBER}"' 敏感词校验完成，命中 {hit_count} 处，已随检视评论报告（未阻断）。",
+     "next_step": "done",
+     "actions": ["拉取 PR diff 变更文件", "按内置词表+IP 正则扫描新增行", "组装并发布检视评论"],
+     "conclusion": "PR #'"${PR_NUMBER}"' 敏感词校验完成，命中 {hit_count} 处，未阻断合入",
+     "artifacts": ["PR #'"${PR_NUMBER}"' 检视评论"],
+     "issue_summary": "敏感词校验完成 | PR #'"${PR_NUMBER}"' | 命中 {hit_count} 处 | 未阻断"
    }'
    ```
+   - `{hit_count}` = runbook Step 2 的命中总数（`SCAN_OUT` 行数），与 `HITS=` 对账；命中=0 时填 0，仍照常收尾。
 
 ## 参考
 
