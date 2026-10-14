@@ -35,6 +35,10 @@ CloudRobo Embodied AI Platform 的示例代码仓库。示例按平台能力域�
 ## License
 
 This project isno licensed under the MIT-0 license.
+myhuaweicloud.com
+codehub
+huawei.com
+172.1.1.12
 
 ## Maintainers
 
