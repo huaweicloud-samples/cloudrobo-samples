@@ -1,6 +1,8 @@
-# 方案/计划 — custom-pr-review（敏感词校验）
+# 方案/计划 — custom-pr-review v2.0.0（多门禁检视）
 
-> 需求锚点：`spec.md`（Issue #3 交付）—— In Scope「在现有 PR 订阅 QA 审查中新增敏感词校验环节」（§Scope:14）、Out of Scope「不新建独立技能（用户明确拒绝）」（§Scope:22）、Risks 预案「官方技能不可 fork/定制入口未开放 → coding 阶段先定位技能资产与定制机制，不可行时回退为仓库内 overlay/包装方案」（§Risks:59）。
+> v1.1.0（敏感词校验）已合并 PR #5 并注册为仓库级 skill（skill_id=2972）。
+> v2.0.0 扩展需求来源：Issue #3 评论 6183893873（Chat Agent 门禁扩展需求，用户已确认）。
+> 扩展范围：7 类门禁（代码质量/编译构建/依赖漏洞/License 合规/密钥泄露/敏感词/文档规范）+ 分级策略（阻断级 ❌ / 警告级 ⚠️）。
 
 ## 一、方案选型核实记录（官方技能定制可行性）
 
@@ -37,28 +39,28 @@
 
 **能力现状（不夸大）**：在完成第 2、3、4 步前，敏感词校验**不会**随 PR 订阅审查自动执行；本 PR 交付的是技能资产本体 + 注册/核验链路说明。第 4 步的节点加载如不可行，本技能仍可按 `agent_type=qa` 被显式调用的任务加载。
 
-## 三、实现顺序
+## 三、v2.0.0 实现顺序
 
-1. **SKILL.md**：技能定位（含「检视流程内不交棒 sre」的任务边界与技能接线说明）、安全约束、环境变量（A/B 两类）、处理流程引用、领域规则（敏感词校验规则表）、操作边界、硬约束、任务完成流程。
-2. **references/pr-review-runbook.md**：执行走查表（Step 0-6），每步给出确切 grape CLI 命令；Step 2 为可直接执行的 python3 扫描实现。
-3. **references/sensitive-scan-guide.md**：敏感词校验指南（内置词表、IP 正则、词表扩展、diff 行号定位与 POSIX awk 参考实现、评论格式、测试覆盖要求）。
-4. **references/grape-cli-reference.md**：CLI 命令参考（qa 检视相关命令子集 + 不存在能力声明）。
-5. **docs/ 开发过程文档**：spec.md（来源 issue agent）、plan.md（本文档）、task.md（任务拆解）。
+1. **SKILL.md** v2.0.0：更新 frontmatter（version/description/tools）；安全硬约束增分级报告+仅评论不阻断；Prerequisites 增可选工具探测；领域规则表扩展为 7 类门禁+级别；操作边界/硬约束/任务完成流程同步更新。≤130 行。
+2. **pr-review-runbook.md**：Step 2 扩展为统一扫描脚本（License/密钥/敏感词 python3 内嵌）+ Step 2b 工具依赖门禁（ruff/black/clang-format/py_compile/pip-audit/mdl/yamllint）；Step 3 评论组装按分级（阻断 ❌ / 警告 ⚠️ / 敏感词）。≤250 行。
+3. **gate-checks-guide.md**（新增）：7 类门禁检测规则/正则/分级标准/降级策略/评论格式/测试覆盖。≤250 行。
+4. **sensitive-scan-guide.md**：沿用 v1（敏感词规则不变）。
+5. **grape-cli-reference.md**：沿用 v1（命令集不变）。
+6. **docs/**：spec.md/plan.md/task.md 更新为 v2.0.0。
 
-## 四、依赖关系
+## 四、v2.0.0 依赖关系
 
-- 敏感词校验被检视评论组装调用（新增调用），不改既有模块间依赖。
-- 依赖 grape CLI：`git-repo pulls files`（取 diff）、`git-repo pulls comments create`（发评论）、`git-repo contents --raw`（取词表）、`tasks complete`（收尾）。
-- 运行时依赖 `python3`（扫描实现）；缺失时按 runbook 错误排查降级为 guide §4 的 POSIX awk 参考实现。
-- 注册链路依赖平台侧 `grape skills upload`（scope=repo）与 `grape-skill-uploader` 技能（见 §二）。
+- 7 类门禁扫描被检视评论组装调用，不改既有模块间依赖。
+- 依赖 grape CLI：`git-repo pulls files`（取 diff）、`issues comments create`（发评论）、`contents --raw`（取词表）、`tasks complete`。
+- 运行时依赖 `python3`（扫描实现）；可选工具（ruff/black/clang-format/clang-tidy/pip-audit/mdl/yamllint）缺失时降级为 SKIP+备注。
+- 注册链路依赖平台侧 `grape skills upload`（scope=repo）；v2.0.0 需重新上传覆盖 v1.1.0。
 
-## 五、风险
+## 五、v2.0.0 风险
 
 | 风险 | 缓解 |
 |------|------|
-| 官方技能定制入口不可用（已发生） | 按 spec §Risks:59 回退仓库内 overlay，并保留整目录可撤销性；偏离项随 PR 评论同步需求方 |
-| 仓库级技能注册/节点加载未完成 → 校验不自动执行 | §二 明确「注册 + 加载」两步与核验命令，并标注平台侧待确认项；不承诺自动生效 |
-| IP 正则误报版本号 | 报告标注「疑似 IP」，审查者自行判断 |
-| 技能自身示例造成自引用命中 | guide §1 声明为预期噪音，按规则原样报告，不阻断 |
+| 外部工具未安装 → 门禁跳过 | 降级为 SKIP+备注，不中断检视；建议仓库配 .pre-commit-config.yaml |
+| 密钥正则误报 | 报告标注命中类型，审查者判断 |
+| License is→isno 检测遗漏 | 正则匹配 is/isno 共现模式；审查者人工复核 |
+| ci.yml 占位未替换 | 超出技能目录范围，需单独实施（PR 描述标注） |
 | 大 diff 性能 | 仅扫变更文件新增行，逐文件流式处理 |
-| 仓库无自定义词表 | 仅用内置词表，不报错 |
