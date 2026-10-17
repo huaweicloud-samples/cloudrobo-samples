@@ -1,4 +1,6 @@
+import json
 import os
+import re
 import shutil
 import sys
 
@@ -275,6 +277,36 @@ def create_new_project(source_dir, target_dir, robot_name):
         dirnames[:] = new_dirnames
 
 
+def copy_scripts(script_dir, target_dir):
+    """把 scripts/ 复制到目标工程，使其与 Assets/ 平级"""
+    target_scripts = os.path.join(target_dir, "scripts")
+    if os.path.exists(target_scripts):
+        shutil.rmtree(target_scripts)
+    shutil.copytree(
+        script_dir,
+        target_scripts,
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+    )
+    print(f"[脚本] 已复制 scripts -> {target_scripts}")
+
+
+def init_metadata(target_robot_dir, robot_name):
+    """在目标机器人目录下生成一份初版 metadata.json"""
+    metadata_path = os.path.join(target_robot_dir, "metadata.json")
+    os.makedirs(target_robot_dir, exist_ok=True)
+
+    metadata = {
+        "robot_type": robot_name,
+        "record_topic": [],
+    }
+
+    with open(metadata_path, "w", encoding="utf-8") as f:
+        json.dump(metadata, f, ensure_ascii=False, indent=4)
+        f.write("\n")
+
+    print(f"已生成初版 metadata.json: {metadata_path}")
+
+
 def main():
     # 1. 获取机器人名称
     if len(sys.argv) > 1:
@@ -282,6 +314,17 @@ def main():
     else:
         robot_name = DEFAULT_ROBOT_NAME
         print(f"未指定机器人名称，使用默认值: {robot_name}")
+
+    # 全局机器人名只在此处校验一次：字母/下划线开头，仅含字母、数字、下划线
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", robot_name):
+        print(
+            f"[错误] 非法机器人名 {robot_name!r}：必须以字母或下划线开头，"
+            "且只能包含字母、数字、下划线"
+        )
+        sys.exit(1)
+    if robot_name == "ur5e":
+        print("[错误] 机器人名不能为 'ur5e'（会覆盖模板工程 robot_ur5e）")
+        sys.exit(1)
 
     # 2. 动态定位路径
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -304,6 +347,13 @@ def main():
 
     # 3. 执行创建
     create_new_project(source_dir, target_dir, robot_name)
+
+    # 4. 复制 scripts 到目标工程（与 Assets 平级）
+    copy_scripts(script_dir, target_dir)
+
+    # 5. 最后初始化初版 metadata.json
+    target_robot_dir = os.path.join(target_dir, "Assets", "robots", f"robot_{robot_name}")
+    init_metadata(target_robot_dir, robot_name)
 
     print("-" * 50)
     print("新工程创建完成！")
