@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 import re
@@ -51,6 +52,20 @@ GRIPPER_CONTROLLER_CONTENT = "// define code\n"
 
 # 需要替换文件内容的扩展名
 TEXT_REPLACE_EXTENSIONS = ['.urdf', '.xacro', '.yaml', '.yml', '.json', '.txt', '.cfg', '.py', '.sh', '.xml']
+
+# 机器人名统一格式：小写字母开头，单词之间用单个下划线分隔
+ROBOT_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$")
+
+
+def robot_name_arg(value: str) -> str:
+    if not ROBOT_NAME_PATTERN.fullmatch(value):
+        raise argparse.ArgumentTypeError(
+            "robot_name must start with a lowercase letter and contain only "
+            "lowercase letters, digits, and single underscores; "
+            "underscores cannot be leading, trailing, or consecutive. "
+            "Examples: r1, ur5e, galaxi_r1, robot_01"
+        )
+    return value
 
 
 # ============================================
@@ -308,20 +323,21 @@ def init_metadata(target_robot_dir, robot_name):
 
 
 def main():
-    # 1. 获取机器人名称
-    if len(sys.argv) > 1:
-        robot_name = sys.argv[1]
-    else:
-        robot_name = DEFAULT_ROBOT_NAME
+    # 1. 获取并统一校验机器人名称
+    parser = argparse.ArgumentParser(description="Initialize a custom robot project.")
+    parser.add_argument(
+        "robot_name",
+        type=robot_name_arg,
+        nargs="?",
+        default=DEFAULT_ROBOT_NAME,
+        help="robot name, e.g. r1, ur5e, galaxi_r1",
+    )
+    args = parser.parse_args()
+    robot_name = args.robot_name
+
+    if len(sys.argv) == 1:
         print(f"未指定机器人名称，使用默认值: {robot_name}")
 
-    # 全局机器人名只在此处校验一次：字母/下划线开头，仅含字母、数字、下划线
-    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", robot_name):
-        print(
-            f"[错误] 非法机器人名 {robot_name!r}：必须以字母或下划线开头，"
-            "且只能包含字母、数字、下划线"
-        )
-        sys.exit(1)
     if robot_name == "ur5e":
         print("[错误] 机器人名不能为 'ur5e'（会覆盖模板工程 robot_ur5e）")
         sys.exit(1)

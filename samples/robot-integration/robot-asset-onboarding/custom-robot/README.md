@@ -218,6 +218,8 @@ ur5e_transformer/
 python scripts/init_project.py <新机器人名>
 ```
 
+机器人名规则：必须以小写字母开头，只能包含小写字母、数字和下划线，且下划线不能位于开头、结尾或连续出现（如 `r1`、`ur5e`、`galaxi_r1` 合法；`1r`、`_r1`、`galaxi_`、`galaxi__r1` 非法）。
+
 ### 完整流程（按生成依赖排序）
 
 `init_project.py` 会把模板里的 MoveIt 配置、URDF、mesh 等清空为占位内容，所以**先用手工补齐你自己的 MoveIt Assistant 配置包与 URDF**，再按下列顺序运行生成脚本。
@@ -237,6 +239,7 @@ python scripts/init_project.py <新机器人名>
 - `generate_gripper_controller.py` 依赖 `<name>.yaml`（步骤 3 的产物）。
 - `patch_moveit_config.py` 需要在 `generate_gripper_controller.py` **之后**运行，才能扫描到生成的夹爪 C++（`--gripper-controller-path`，默认自动查找）。
 - `generate_robot_yaml.py` 输出的 `fixed_base` **故意留空**，需手工填写后再继续后续步骤。
+- `generate_robot_yaml.py` 采用半自动化：机械臂、夹爪、躯干等无法自动推导的字段会留空并打印 `[WARN]` 与 `[PARTIAL]`，不会中断生成，需手工补齐后再继续。
 
 ```bash
 cd samples/robot-integration/robot-asset-onboarding/custom-robot
