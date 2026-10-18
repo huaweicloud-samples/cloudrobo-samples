@@ -31,7 +31,7 @@ Final design rules
    NOTE: left/right matching is ONLY done inside arm candidates, never across all
    SRDF groups, so groups such as r1_left_grippers do not interfere.
 4. Arm joint order comes from the URDF kinematic path base_link -> tip_link.
-   fixed joints are skipped; revolute/continuous/prismatic joints are kept.
+   fixed joints are skipped; all other joint types are kept.
 5. Gripper groups are NOT inferred from group names.
    Single arm:
       group_state 'open' and 'close' must belong to the same SRDF group.
@@ -41,8 +41,11 @@ Final design rules
       left and right gripper groups must be different.
    If no gripper states are configured at all, gripper sections are omitted.
    If a side is partially configured or ambiguous, generation fails.
-6. Gripper joint_names are read from that SRDF group's direct <joint> entries,
-   preserving declaration order. Any number of fingers/joints is supported.
+6. Gripper membership comes from the SRDF group's direct joints and the joints
+   present in its open/close Robot Pose states. Output joint_names follow URDF
+   declaration order, never SRDF click/declaration order. URDF fixed joints are
+   filtered out. Incomplete state values are warned about and emitted partially.
+   Direct-joint torso groups also follow URDF declaration order.
 7. init_joints comes ONLY from group_state 'init_pose'.
    It is independent from gripper open/close. If init_pose includes gripper
    joints, they are preserved; if not, no gripper initial values are added.
@@ -92,7 +95,6 @@ LEFT_GRIPPER_COMMAND_TOPIC = "/left_gripper_controller"
 RIGHT_GRIPPER_COMMAND_TOPIC = "/right_gripper_controller"
 TORSO_TOPIC = "/torso_position_controller/commands"
 
-SUPPORTED_MOVABLE_JOINT_TYPES = {"revolute", "continuous", "prismatic"}
 
 
 # -----------------------------------------------------------------------------
@@ -195,25 +197,39 @@ def _parse_urdf(urdf_path: Path):
 
 
 def _all_movable_urdf_joints(joints: "OrderedDict[str, dict]") -> List[str]:
-    """Return every movable URDF joint in URDF declaration order.
+    """Return every non-fixed URDF joint in URDF declaration order."""
+    return [
+        joint["name"]
+        for joint in joints.values()
+        if joint["type"] != "fixed"
+    ]
 
-    Current platform contract expects the single trajectory controller to cover
-    all movable joints. Unsupported movable joint types fail instead of being
-    silently ignored.
+
+def _urdf_ordered_non_fixed_joint_names(
+    candidate_names: List[str],
+    urdf_joints: "OrderedDict[str, dict]",
+    context: str,
+) -> List[str]:
+    """Filter fixed joints and order known joints by URDF declaration order.
+
+    SRDF group declaration order is user-editable and must not determine the
+    Float64MultiArray value order. A joint absent from the supplied URDF cannot
+    be safely ordered or classified, so it is warned about and omitted instead
+    of blocking this semi-automatic generator.
     """
-    result: List[str] = []
-    for joint in joints.values():
-        joint_type = joint["type"]
-        if joint_type == "fixed":
-            continue
-        if joint_type not in SUPPORTED_MOVABLE_JOINT_TYPES:
-            raise ValueError(
-                f"Unsupported movable URDF joint type {joint_type!r}: "
-                f"joint {joint['name']!r}. Current generator supports "
-                f"{sorted(SUPPORTED_MOVABLE_JOINT_TYPES)} and fixed."
-            )
-        result.append(joint["name"])
-    return result
+    candidate_set = set(candidate_names)
+    ordered = [
+        name
+        for name, info in urdf_joints.items()
+        if name in candidate_set and info["type"] != "fixed"
+    ]
+    unknown = [name for name in candidate_names if name not in urdf_joints]
+    if unknown:
+        print(
+            f"[WARN] {context}: joints not found in URDF and omitted from the generated joint list: {unknown}",
+            file=sys.stderr,
+        )
+    return ordered
 
 
 def _chain_joint_names(
@@ -252,14 +268,8 @@ def _chain_joint_names(
 
     result: List[str] = []
     for joint in reversed(reverse_path):
-        joint_type = joint["type"]
-        if joint_type == "fixed":
+        if joint["type"] == "fixed":
             continue
-        if joint_type not in SUPPORTED_MOVABLE_JOINT_TYPES:
-            raise ValueError(
-                f"Unsupported joint type {joint_type!r} in arm chain: "
-                f"{joint['name']!r}"
-            )
         result.append(joint["name"])
 
     if not result:
@@ -512,7 +522,11 @@ def _detect_arms(groups: dict, kinematics_path: Path) -> dict:
 # Gripper detection from explicit Robot Pose state names (never group-name guess)
 # -----------------------------------------------------------------------------
 
-def _direct_joint_group(groups: dict, group_name: str) -> List[str]:
+def _direct_joint_group(
+    groups: dict,
+    group_name: str,
+    urdf_joints: "OrderedDict[str, dict]",
+) -> List[str]:
     if group_name not in groups:
         raise ValueError(f"SRDF gripper group {group_name!r} does not exist")
 
@@ -526,13 +540,32 @@ def _direct_joint_group(groups: dict, group_name: str) -> List[str]:
         raise ValueError(
             f"Duplicate joints in gripper group {group_name!r}: {joints}"
         )
-    return joints
+
+    # SRDF determines membership only. The generated array order always follows
+    # the URDF declaration, because SRDF joint order may reflect arbitrary UI clicks.
+    return _urdf_ordered_non_fixed_joint_names(
+        joints, urdf_joints, f"Gripper group {group_name!r}"
+    )
 
 
-def _validate_state_covers_gripper(
+def _gripper_joint_names_from_states(
+    group_joint_names: List[str],
+    open_state: dict,
+    close_state: dict,
+) -> List[str]:
+    """Keep group members actually represented by either pose state.
+
+    group_joint_names is already filtered and ordered by URDF declaration order.
+    """
+    state_joints = set(open_state["values"]) | set(close_state["values"])
+    return [name for name in group_joint_names if name in state_joints]
+
+
+def _state_values_for_gripper(
     state: dict,
     expected_group: str,
     joint_names: List[str],
+    urdf_joints: "OrderedDict[str, dict]",
 ) -> "OrderedDict[str, float]":
     if state["group"] != expected_group:
         raise ValueError(
@@ -540,23 +573,30 @@ def _validate_state_covers_gripper(
             f"expected {expected_group!r}"
         )
 
-    expected = set(joint_names)
-    actual = set(state["values"])
-    missing = sorted(expected - actual)
-    extra = sorted(actual - expected)
-    if missing or extra:
-        raise ValueError(
-            f"State {state['name']!r} for gripper group {expected_group!r} "
-            f"must exactly cover its joint_names. missing={missing}, extra={extra}"
+    # Do not require open/close states to cover exactly the same joint set.
+    # MoveIt may omit fixed joints or leave a pose partially specified; preserve
+    # available values in the same URDF order and warn instead of aborting YAML.
+    missing = [joint_name for joint_name in joint_names if joint_name not in state["values"]]
+    if missing:
+        print(
+            f"[WARN] Robot Pose state {state['name']!r} for gripper group "
+            f"{expected_group!r} has no values for {missing}; those entries are omitted from this pose.",
+            file=sys.stderr,
         )
 
     return OrderedDict(
         (joint_name, state["values"][joint_name])
         for joint_name in joint_names
+        if joint_name in state["values"]
+        and urdf_joints.get(joint_name, {}).get("type") != "fixed"
     )
 
 
-def _resolve_single_gripper(groups: dict, group_states: List[dict]) -> Optional[dict]:
+def _resolve_single_gripper(
+    groups: dict,
+    group_states: List[dict],
+    urdf_joints: "OrderedDict[str, dict]",
+) -> Optional[dict]:
     opens = _find_states_by_name(group_states, "open")
     closes = _find_states_by_name(group_states, "close")
 
@@ -579,17 +619,28 @@ def _resolve_single_gripper(groups: dict, group_states: List[dict]) -> Optional[
         )
 
     group_name = open_state["group"]
-    joint_names = _direct_joint_group(groups, group_name)
+    group_joint_names = _direct_joint_group(groups, group_name, urdf_joints)
+    joint_names = _gripper_joint_names_from_states(
+        group_joint_names, open_state, close_state
+    )
 
     return {
         "group": group_name,
         "joint_names": joint_names,
-        "open": _validate_state_covers_gripper(open_state, group_name, joint_names),
-        "close": _validate_state_covers_gripper(close_state, group_name, joint_names),
+        "open": _state_values_for_gripper(
+            open_state, group_name, joint_names, urdf_joints
+        ),
+        "close": _state_values_for_gripper(
+            close_state, group_name, joint_names, urdf_joints
+        ),
     }
 
 
-def _resolve_dual_grippers(groups: dict, group_states: List[dict]) -> dict:
+def _resolve_dual_grippers(
+    groups: dict,
+    group_states: List[dict],
+    urdf_joints: "OrderedDict[str, dict]",
+) -> dict:
     state_names = ["left_open", "left_close", "right_open", "right_close"]
     states = {name: _find_states_by_name(group_states, name) for name in state_names}
 
@@ -628,34 +679,43 @@ def _resolve_dual_grippers(groups: dict, group_states: List[dict]) -> dict:
             f"Left and right grippers cannot use the same SRDF group {left_group!r}."
         )
 
-    left_joints = _direct_joint_group(groups, left_group)
-    right_joints = _direct_joint_group(groups, right_group)
+    left_group_joints = _direct_joint_group(groups, left_group, urdf_joints)
+    right_group_joints = _direct_joint_group(groups, right_group, urdf_joints)
+    left_joints = _gripper_joint_names_from_states(
+        left_group_joints, left_open, left_close
+    )
+    right_joints = _gripper_joint_names_from_states(
+        right_group_joints, right_open, right_close
+    )
 
     return {
         "left": {
             "group": left_group,
             "joint_names": left_joints,
-            "open": _validate_state_covers_gripper(
-                left_open, left_group, left_joints
+            "open": _state_values_for_gripper(
+                left_open, left_group, left_joints, urdf_joints
             ),
-            "close": _validate_state_covers_gripper(
-                left_close, left_group, left_joints
+            "close": _state_values_for_gripper(
+                left_close, left_group, left_joints, urdf_joints
             ),
         },
         "right": {
             "group": right_group,
             "joint_names": right_joints,
-            "open": _validate_state_covers_gripper(
-                right_open, right_group, right_joints
+            "open": _state_values_for_gripper(
+                right_open, right_group, right_joints, urdf_joints
             ),
-            "close": _validate_state_covers_gripper(
-                right_close, right_group, right_joints
+            "close": _state_values_for_gripper(
+                right_close, right_group, right_joints, urdf_joints
             ),
         },
     }
 
 
-def _optional_torso_joints(groups: dict) -> Optional[List[str]]:
+def _optional_torso_joints(
+    groups: dict,
+    urdf_joints: "OrderedDict[str, dict]",
+) -> Optional[List[str]]:
     """Return joints from the unique direct-joint Planning Group containing 'torso'."""
     torso_groups = [
         name for name in groups
@@ -686,15 +746,23 @@ def _optional_torso_joints(groups: dict) -> Optional[List[str]]:
             "subgroups are not supported for automatic torso generation"
         )
 
-    joints = list(cfg.get("joints", []))
-    if not joints:
+    group_joints = list(cfg.get("joints", []))
+    if not group_joints:
         raise ValueError(
             f"SRDF torso Planning Group {group_name!r} contains no direct <joint> entries"
         )
 
-    if len(joints) != len(set(joints)):
+    if len(group_joints) != len(set(group_joints)):
         raise ValueError(
-            f"SRDF torso Planning Group {group_name!r} contains duplicate joints: {joints}"
+            f"SRDF torso Planning Group {group_name!r} contains duplicate joints: {group_joints}"
+        )
+
+    joints = _urdf_ordered_non_fixed_joint_names(
+        group_joints, urdf_joints, f"Torso group {group_name!r}"
+    )
+    if not joints:
+        raise ValueError(
+            f"SRDF torso Planning Group {group_name!r} contains no non-fixed joints"
         )
 
     return joints
@@ -943,11 +1011,34 @@ def generate_config(paths: dict) -> Tuple[OrderedDict, dict]:
     cfg["moveit_controller"] = moveit_controller
 
     topic_controller: OrderedDict = OrderedDict()
+    unresolved_fields: List[str] = []
+
+    def _resolve_arm_joints_or_empty(
+        base_link: str, tip_link: str, field_name: str
+    ) -> List[str]:
+        try:
+            # Arms are serial chains, so retain their semantic base->tip order.
+            # The URDF declaration-order sorting is for direct-joint groups whose
+            # SRDF order can be changed by arbitrary UI selections.
+            return _chain_joint_names(base_link, tip_link, child_to_joint)
+        except ValueError as exc:
+            print(f"[WARN] {exc}", file=sys.stderr)
+            print(
+                f"[WARN] Cannot infer {field_name}. Please add/confirm the arm "
+                f"tool link {tip_link!r} in the URDF and connect it to the arm "
+                "end link with a joint, or correct the SRDF Planning Group tip_link. "
+                "The field is left empty for manual completion.",
+                file=sys.stderr,
+            )
+            unresolved_fields.append(field_name)
+            return []
 
     if arm_info["arm_type"] == "single":
         arm_group = arm_info["arm_group"]
         base_link, tip_link = groups[arm_group]["chain"]
-        arm_joints = _chain_joint_names(base_link, tip_link, child_to_joint)
+        arm_joints = _resolve_arm_joints_or_empty(
+            base_link, tip_link, "topic_controller.arm.joint_names"
+        )
 
         topic_controller["arm"] = OrderedDict(
             [
@@ -956,7 +1047,7 @@ def generate_config(paths: dict) -> Tuple[OrderedDict, dict]:
             ]
         )
 
-        gripper = _resolve_single_gripper(groups, group_states)
+        gripper = _resolve_single_gripper(groups, group_states, urdf_joints)
         if gripper is not None:
             topic_controller["hand"] = _make_gripper_spec(
                 HAND_TOPIC_SINGLE,
@@ -971,14 +1062,14 @@ def generate_config(paths: dict) -> Tuple[OrderedDict, dict]:
         left_base, left_tip = groups[left_arm_group]["chain"]
         right_base, right_tip = groups[right_arm_group]["chain"]
 
-        left_arm_joints = _chain_joint_names(
-            left_base, left_tip, child_to_joint
+        left_arm_joints = _resolve_arm_joints_or_empty(
+            left_base, left_tip, "topic_controller.left_arm.joint_names"
         )
-        right_arm_joints = _chain_joint_names(
-            right_base, right_tip, child_to_joint
+        right_arm_joints = _resolve_arm_joints_or_empty(
+            right_base, right_tip, "topic_controller.right_arm.joint_names"
         )
 
-        grippers = _resolve_dual_grippers(groups, group_states)
+        grippers = _resolve_dual_grippers(groups, group_states, urdf_joints)
 
         # Preserve the current dual-arm sample's role order as much as possible:
         # right_gripper, left_gripper, left_arm, right_arm.
@@ -1008,7 +1099,7 @@ def generate_config(paths: dict) -> Tuple[OrderedDict, dict]:
             ]
         )
 
-    torso_joints = _optional_torso_joints(groups)
+    torso_joints = _optional_torso_joints(groups, urdf_joints)
     if torso_joints is not None:
         topic_controller["torso"] = OrderedDict(
             [
@@ -1034,6 +1125,7 @@ def generate_config(paths: dict) -> Tuple[OrderedDict, dict]:
         "controller": moveit_controller,
         "controller_joints": controller_joints,
         "movable_urdf_joints": all_movable,
+        "unresolved_fields": unresolved_fields,
     }
     return cfg, debug
 
@@ -1119,7 +1211,13 @@ def main() -> int:
         return 1
 
     print(f"[OK] Robot: {paths['robot']}")
-    print(f"[OK] Generated: {paths['output']}")
+    if debug.get("unresolved_fields"):
+        print(f"[PARTIAL] Generated: {paths['output']}")
+        print("[IMPORTANT] Please fill these unresolved fields manually:")
+        for field_name in debug["unresolved_fields"]:
+            print(f"  - {field_name}")
+    else:
+        print(f"[OK] Generated: {paths['output']}")
     print(f"[INPUT] Robot description: {paths['urdf']}")
     print(f"[INPUT] SRDF: {paths['srdf']}")
     print(f"[INPUT] kinematics: {paths['kinematics']}")
