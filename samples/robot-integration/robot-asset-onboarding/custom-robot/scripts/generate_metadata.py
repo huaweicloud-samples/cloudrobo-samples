@@ -324,18 +324,17 @@ def _collect_robot_topics(
             _required_topic(topic_controller.get("torso"), robot_yaml_path, "torso"),
         )
 
-    # Keep the existing R1 metadata order: right high-level gripper topic, then left.
     if has_left_gripper:
         _add_topic(
             topics,
             _required_gripper_command_topic(
-                topic_controller.get("right_gripper"), robot_yaml_path, "right_gripper"
+                topic_controller.get("left_gripper"), robot_yaml_path, "left_gripper"
             ),
         )
         _add_topic(
             topics,
             _required_gripper_command_topic(
-                topic_controller.get("left_gripper"), robot_yaml_path, "left_gripper"
+                topic_controller.get("right_gripper"), robot_yaml_path, "right_gripper"
             ),
         )
 

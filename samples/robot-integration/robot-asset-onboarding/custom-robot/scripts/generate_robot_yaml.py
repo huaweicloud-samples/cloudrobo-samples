@@ -57,8 +57,8 @@ Final design rules
    Other movable URDF joints are allowed and do not need to belong to the trajectory controller.
 9. topic_controller is generated ONLY for platform roles:
       single: arm, optional hand, optional torso
-      dual:   optional right_gripper, optional left_gripper, left_arm, right_arm,
-              optional torso
+       dual:   left_arm, right_arm, optional left_gripper, optional right_gripper,
+               optional torso
    A torso is generated only when SRDF contains exactly one direct-joint group
    whose name contains 'torso' (case-insensitive). Other extra SRDF groups are ignored.
 10. Topic names follow the current platform convention and are not guessed from
@@ -1071,21 +1071,7 @@ def generate_config(paths: dict) -> Tuple[OrderedDict, dict]:
 
         grippers = _resolve_dual_grippers(groups, group_states, urdf_joints)
 
-        # Preserve the current dual-arm sample's role order as much as possible:
-        # right_gripper, left_gripper, left_arm, right_arm.
-        if grippers["right"] is not None:
-            topic_controller["right_gripper"] = _make_gripper_spec(
-                RIGHT_GRIPPER_TOPIC,
-                RIGHT_GRIPPER_COMMAND_TOPIC,
-                grippers["right"],
-            )
-        if grippers["left"] is not None:
-            topic_controller["left_gripper"] = _make_gripper_spec(
-                LEFT_GRIPPER_TOPIC,
-                LEFT_GRIPPER_COMMAND_TOPIC,
-                grippers["left"],
-            )
-
+        # Output order: left_arm, right_arm, left_gripper, right_gripper.
         topic_controller["left_arm"] = OrderedDict(
             [
                 ("topic_name", LEFT_ARM_TOPIC),
@@ -1098,6 +1084,19 @@ def generate_config(paths: dict) -> Tuple[OrderedDict, dict]:
                 ("joint_names", right_arm_joints),
             ]
         )
+
+        if grippers["left"] is not None:
+            topic_controller["left_gripper"] = _make_gripper_spec(
+                LEFT_GRIPPER_TOPIC,
+                LEFT_GRIPPER_COMMAND_TOPIC,
+                grippers["left"],
+            )
+        if grippers["right"] is not None:
+            topic_controller["right_gripper"] = _make_gripper_spec(
+                RIGHT_GRIPPER_TOPIC,
+                RIGHT_GRIPPER_COMMAND_TOPIC,
+                grippers["right"],
+            )
 
     torso_joints = _optional_torso_joints(groups, urdf_joints)
     if torso_joints is not None:

@@ -14,15 +14,17 @@ SOURCE_DIR_NAME = "robot_ur5e"
 
 # 需要完全排除（不复制）的路径列表
 # 注意：这里只放真正不需要保留目录结构的文件夹
-EXCLUDE_PATHS = [
-    "Assets/robots/robot_ur5e/ur5e_description/config",
-]
+EXCLUDE_PATHS = []
 
 # 需要完全清空的目录列表 (相对于 SOURCE_DIR)
 # 这些目录只保留空壳，删除下面所有子目录和文件
+# 注意：description 的 CMakeLists.txt 会 install(DIRECTORY config ...)，
+# 所以 config 必须保留空壳目录，否则 colcon build 会在 configure 阶段报
+# "install DIRECTORY given directory config which does not exist"。
 CLEAR_DIRS = [
     "Assets/UrdfImporter",
     "Assets/robots/robot_ur5e/ur5e_config",
+    "Assets/robots/robot_ur5e/ur5e_description/config",
     "Assets/robots/robot_ur5e/ur5e_description/meshes",
     "Assets/robots/robot_ur5e/ur5e_description/urdf",
 ]

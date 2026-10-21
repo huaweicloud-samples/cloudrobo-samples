@@ -3,8 +3,8 @@
 <package format="3">
   <name>ur5e_description</name>
   <version>0.0.0</version>
-  <description>URDF description based on opensource ur5e</description>
-  <maintainer email="leon@huawei.com">leon</maintainer>
+  <description>URDF description for ur5e</description>
+  <maintainer email="ur5e@example.com">ur5e</maintainer>
   <license>BSD</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
