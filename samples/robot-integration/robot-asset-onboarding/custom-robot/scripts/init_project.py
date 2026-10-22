@@ -66,7 +66,7 @@ def should_exclude(rel_path, exclude_paths):
         # 如果相对路径等于排除路径，或者以排除路径开头，则排除
         if rel_path_norm == exclude_norm or rel_path_norm.startswith(exclude_norm + '/'):
             return True
-    return False
+    return False 我要构造编译构建的错误
 
 
 def is_in_empty_dir(rel_path, empty_dirs):
