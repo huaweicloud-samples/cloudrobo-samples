@@ -133,3 +133,4 @@ grape git-repo statuses create \
   2. **License 门禁规则修订**（维护者定义）：仓库根 LICENSE 缺失 → 仅提示不阻断；存在则须合规（改坏/篡改特征 → 阻断）。技能文档已同步升 v2.0.1，平台侧需重新 `grape skills upload --scope repo` 覆盖注册。
   3. 版本引用更新：背景中技能 v1.1.0 → 现 v2.0.1；§五 SKILL.md 目标版本由 1.1.0→1.2.0 改为 2.0.1→2.1.0。
   4. **职责拆分**（同日第二批变更）：编译构建/密钥泄露/License 合规三类阻断级检查移出技能（技能收敛为 4 类警告级门禁，v2.0.1 → v2.1.0），由仓库 CI required check `ci` 独占承担。#1 所述「与 gate-checks-guide.md 同源维护」的漂移风险随之消解：阻断级规则单一来源 = CI 门禁脚本。技能不再产出阻断级结论，AI 语义级检视结论仍随评论报告（平台 statuses 能力交付后按 §五 上报）。
+  5. **License 合规定义收紧**（同日第三批变更）：#2「存在则须合规」具体化为**须命中已知开源许可证允许清单**（MIT/Apache-2.0/BSD-2&3/ISC/0BSD/Boost/Artistic-2.0/木兰 PSL v2/GPL/LGPL/AGPL/MPL-2.0/EPL-2.0/CDDL/Unlicense/CC0，指纹见 `.github/scripts/pr_gate.py` `LICENSE_OPEN_SOURCE_SNIPPETS`）；商业/专有许可（BSL/FSL/SSPL/Commons Clause/Elastic License）一票阻断且**优先于开源指纹**（防「开源文本+限制条款」混合许可）；单纯 copyright 声明不再视为有效许可。

@@ -5,7 +5,7 @@
 - 阻断级 BLOCKING（任一命中 → 退出码 1，产生 failed check）：
   1) 编译失败：Python 源文件语法错误（py_compile 全量）
   2) 密钥/凭证泄露：新增行中的明文口令/私钥/AK/SK/token
-  3) License 不合规：LICENSE 存在但声明被改坏/篡改（缺失仅提示，不阻断）
+  3) License 不合规：LICENSE 存在时须为已知开源许可证且未被改坏/篡改，商业/专有许可阻断（缺失仅提示）
 - 警告级 WARNING（仅 GitHub annotation / PR 评论提示，不失败）：
   ruff/black（Python 风格）、clang-format/clang-tidy（C++ 风格，工具缺失自动 SKIP）、
   pip-audit（依赖漏洞）、mdl/yamllint（文档规范）、敏感词（内部域名/IP，沿用 v1 仅报告）
@@ -47,8 +47,37 @@ SECRET_PATTERNS = [
     (re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]*\b"), "JWT Token"),
 ]
 
-# License 指纹片段（大小写不敏感子串）
-LICENSE_OK_SNIPPETS = ["apache license", "copyright", "bsd", "mit license", "gnu general public license", "mozilla public license"]
+# 已知开源许可证指纹（大小写不敏感子串；命中任一即视为开源许可）
+LICENSE_OPEN_SOURCE_SNIPPETS = [
+    # ---- 宽松（Permissive）----
+    "apache license",                                                   # Apache-2.0
+    "mit license", "permission is hereby granted, free of charge",      # MIT
+    "bsd 2-clause", "bsd 3-clause", "simplified bsd", "new bsd license",  # BSD 各变体标题
+    "redistribution and use in source and binary forms",                # BSD/ISC 家族正文指纹
+    "isc license", "permission to use, copy, modify, and/or distribute this software",  # ISC / 0BSD
+    "boost software license",                                           # BSL-1.0（Boost，非 Business Source License）
+    "artistic license",                                                 # Artistic-2.0
+    "mulan permissive software license", "木兰宽松许可证",                 # 木兰 PSL v2（OSI 认证）
+    # ---- 著作权（Copyleft）----
+    "gnu general public license",                                       # GPL-2.0 / GPL-3.0
+    "gnu lesser general public license",                                # LGPL-2.1 / LGPL-3.0
+    "gnu affero general public license",                                # AGPL-3.0
+    "mozilla public license",                                           # MPL-2.0
+    "eclipse public license",                                           # EPL-2.0
+    "common development and distribution license",                      # CDDL-1.0/1.1
+    # ---- 公共领域 ----
+    "the unlicense", "unencumbered software released into the public domain",  # Unlicense
+    "cc0 1.0", "creative commons zero",                                 # CC0-1.0
+]
+
+# 已知非开源/商业许可特征（命中即一票阻断，优先于开源指纹——防「开源文本 + 限制条款」混合许可）
+LICENSE_CLOSED_HINTS = [
+    ("business source license", "BSL（Business Source License，商业源码许可）"),
+    ("functional source license", "FSL（Functional Source License）"),
+    ("server side public license", "SSPL（Server Side Public License，未被 OSI 认可）"),
+    ("commons clause", "Commons Clause 限制条款（常附加于 Apache 文本之后）"),
+    ("elastic license", "Elastic License 2.0（源码可得但非开源）"),
+]
 LICENSE_TAMPER_HINTS = [r"\bisno\b", r"\bwa\b(?!rning)", r"licensed under no"]
 
 TEXT_SUFFIX = (".py", ".md", ".txt", ".yml", ".yaml", ".json", ".xml", ".cfg", ".ini", ".toml", ".rst", "", ".sh", ".cmake", ".xacro", ".urdf", ".dae")
@@ -175,9 +204,9 @@ def main():
                     blocking.append((path, idx, f"密钥泄露（{desc}）", line.strip()[:160]))
                     break
 
-    # ---------- ③ License 门禁（阻断级）：存在则须合规；缺失仅提示不阻断 ----------
-    # 独立于 scan-mode：只检查仓库根目录 LICENSE，嵌套资产 LICENSE 不参与判定
-    # （gate-checks-guide.md §2「仓库根目录」）。
+    # ---------- ③ License 门禁（阻断级）：存在则须为已知开源许可证；缺失仅提示不阻断 ----------
+    # 独立于 scan-mode：只检查仓库根目录 LICENSE，嵌套资产 LICENSE 不参与判定；
+    # 商业/专有许可一票阻断（LICENSE_CLOSED_HINTS 优先于开源指纹）。
     root_licenses = root_license_files(head)
     if not root_licenses:
         infos.append(("(repository)", 1, "License 缺失（不阻断）", "仓库根目录无 LICENSE/LICENSE.md/LICENSE.txt"))
@@ -186,8 +215,17 @@ def main():
             content = sh(["git", "show", f"{head}:{path}"]).stdout
         except Exception:
             continue
-        if not content or not any(s in content.lower() for s in LICENSE_OK_SNIPPETS):
-            blocking.append((path, 1, "License 内容被改坏或为空", "未识别到有效许可声明指纹"))
+        low = (content or "").lower()
+        # 1) 已知商业/非开源许可 → 一票阻断（优先于开源指纹）
+        closed = next((desc for hint, desc in LICENSE_CLOSED_HINTS if hint in low), None)
+        if closed:
+            blocking.append((path, 1, "非开源许可证（商业/限制性条款）", f"检出 {closed}"))
+            continue
+        # 2) 须命中已知开源许可证指纹（单纯 copyright 声明不算许可）
+        if not low or not any(s in low for s in LICENSE_OPEN_SOURCE_SNIPPETS):
+            blocking.append((path, 1, "非已知开源许可证", "未识别到开源许可指纹（商业/专有许可或内容被改坏）；须使用标准开源许可证"))
+            continue
+        # 3) 篡改特征
         for hint in LICENSE_TAMPER_HINTS:
             if re.search(hint, content, re.IGNORECASE):
                 blocking.append((path, 1, "License 疑似被篡改（isno/wa）", f"命中篡改特征 {hint}"))
@@ -285,7 +323,7 @@ def main():
     print(f"工具降级:   {len(skips)}")
 
     if blocking:
-        print("\n❌ 门禁未通过：存在阻断级问题（License 不合规、密钥泄露、编译失败），须修复后才能合入。")
+        print("\n❌ 门禁未通过：存在阻断级问题（License 非开源/被改坏、密钥泄露、编译失败），须修复后才能合入。")
         return 1
     print("\n✅ 门禁通过：无阻断级问题；警告/提示见 annotation 与汇总。")
     return 0
