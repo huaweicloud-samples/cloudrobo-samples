@@ -45,7 +45,7 @@
 
 ### Out of Scope
 
-- **不改**检视/阻断级的判定逻辑本身（什么算「阻断级」仍由技能规则定义，本需求只负责把结论送达门禁）
+- **不改**检视/阻断级的判定逻辑本身（什么算「阻断级」仍由技能规则定义，本需求只负责把结论送达门禁）〔2026-10-23 修订：阻断级判定已移出技能、由仓库 CI 门禁定义，见 §九 #4；本条「语义级发现由 AI 检出」部分不变〕
 - **不选**仓库侧 CI 复算门禁方案：语义级问题 CI 无法复算，且双份规则必然漂移（见 §三 决策表）〔2026-10-23 修订：规则化子集的 CI 复算已作为过渡门禁落地，见 §九 #1；语义级不可复算的结论仍然成立〕
 - **不改**会话/token 注入机制（沿用现有 `GRAPE_SESSION_TOKEN`）
 - **不新增**其他 Issue/PR 写端点
@@ -98,7 +98,7 @@ grape git-repo statuses create \
 | 文件 | 变更 |
 |------|------|
 | `references/grape-cli-reference.md` | §3 登记 `git-repo statuses create`；§4「不存在能力」相应条目移除 |
-| `SKILL.md` | 硬约束「仅评论不阻断 / 阻断 ❌ 禁止」→「阻断级命中 → statuses create(failure)；无阻断级 → success；上报失败降级为仅评论并说明」；版本 2.0.1 → 2.1.0 |
+| `SKILL.md` | 硬约束「仅评论不阻断 / 阻断 ❌ 禁止」→「阻断级命中 → statuses create(failure)；无阻断级 → success；上报失败降级为仅评论并说明」；版本 2.1.0 → 2.2.0 |
 | `references/pr-review-runbook.md` | 新增 Step 4.5「上报门禁状态」（Step 4 发布评论之后、Step 6 收尾之前）；错误排查表增补上报失败条目；评论模板「仅评论报告不直接阻断合入」→「已上报门禁状态：failure/success（context=…）」 |
 | `spec.md`（Issue #3） | Out of Scope「不阻断」条目标注「已由 blocking-gate-spec.md 取代」，不删除原文（保留决策轨迹） |
 | 分支保护 | 见 §六 |
@@ -132,3 +132,4 @@ grape git-repo statuses create \
   1. **推翻 Out of Scope「本仓库不引入 CI 复算」**：规则化阻断子集的 CI 复算门禁已落地——`.github/scripts/pr_gate.py` 接入 `.github/workflows/ci.yml`（job 名 `ci`，分支 feat/issue-3），覆盖编译失败/密钥正则/License 合规三类机器可判定阻断，作为本 spec P0（statuses create）交付前的过渡兜底。**「语义级发现 CI 无法复算」的结论不变**，仍依赖平台交付；`pr_gate.py` 规则与 `gate-checks-guide.md` 同源维护（技能 v2.0.1），漂移风险以同步修订约束。
   2. **License 门禁规则修订**（维护者定义）：仓库根 LICENSE 缺失 → 仅提示不阻断；存在则须合规（改坏/篡改特征 → 阻断）。技能文档已同步升 v2.0.1，平台侧需重新 `grape skills upload --scope repo` 覆盖注册。
   3. 版本引用更新：背景中技能 v1.1.0 → 现 v2.0.1；§五 SKILL.md 目标版本由 1.1.0→1.2.0 改为 2.0.1→2.1.0。
+  4. **职责拆分**（同日第二批变更）：编译构建/密钥泄露/License 合规三类阻断级检查移出技能（技能收敛为 4 类警告级门禁，v2.0.1 → v2.1.0），由仓库 CI required check `ci` 独占承担。#1 所述「与 gate-checks-guide.md 同源维护」的漂移风险随之消解：阻断级规则单一来源 = CI 门禁脚本。技能不再产出阻断级结论，AI 语义级检视结论仍随评论报告（平台 statuses 能力交付后按 §五 上报）。
