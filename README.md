@@ -21,6 +21,7 @@ CloudRobo Embodied AI Platform 的示例代码仓库。示例按平台能力域�
 - [`custom-robot`](samples/robot-integration/robot-asset-onboarding/custom-robot/)：机器人资产接入示例，保留原始工程目录与代码结构。
 
 目录与示例撰写要求见 [示例规范](docs/conventions/sample-authoring.md)。
+password：212
 
 ## 快速开始
 
