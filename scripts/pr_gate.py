@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """PR 门禁扫描器（Issue #3 定制PR检视 · 真实阻断能力）.
 
-分级策略（与 custom-pr-review v2.0.0 保持一致）：
+分级策略（与 custom-pr-review v2.0.1 保持一致）：
 - 阻断级 BLOCKING（任一命中 → 退出码 1，产生 failed check）：
   1) 编译失败：Python 源文件语法错误（py_compile 全量）
   2) 密钥/凭证泄露：新增行中的明文口令/私钥/AK/SK/token
-  3) License 缺失或被改坏：LICENSE 文件缺失 / 声明被篡改
+  3) License 不合规：LICENSE 存在但声明被改坏/篡改（缺失仅提示，不阻断）
 - 警告级 WARNING（仅 GitHub annotation / PR 评论提示，不失败）：
   ruff/black（Python 风格）、clang-format/clang-tidy（C++ 风格，工具缺失自动 SKIP）、
   pip-audit（依赖漏洞）、mdl/yamllint（文档规范）、敏感词（内部域名/IP，沿用 v1 仅报告）
@@ -175,12 +175,12 @@ def main():
                     blocking.append((path, idx, f"密钥泄露（{desc}）", line.strip()[:160]))
                     break
 
-    # ---------- ③ License 门禁（阻断级）：仓库根 LICENSE 缺失 / 被改坏 ----------
+    # ---------- ③ License 门禁（阻断级）：存在则须合规；缺失仅提示不阻断 ----------
     # 独立于 scan-mode：只检查仓库根目录 LICENSE，嵌套资产 LICENSE 不参与判定
-    # （gate-checks-guide.md §2「仓库根目录」）。changed 模式下 LICENSE 未变更不误报。
+    # （gate-checks-guide.md §2「仓库根目录」）。
     root_licenses = root_license_files(head)
     if not root_licenses:
-        blocking.append(("(repository)", 0, "License 缺失", "仓库根目录无 LICENSE/LICENSE.md/LICENSE.txt"))
+        infos.append(("(repository)", 1, "License 缺失（不阻断）", "仓库根目录无 LICENSE/LICENSE.md/LICENSE.txt"))
     for path in root_licenses:
         try:
             content = sh(["git", "show", f"{head}:{path}"]).stdout
@@ -285,7 +285,7 @@ def main():
     print(f"工具降级:   {len(skips)}")
 
     if blocking:
-        print("\n❌ 门禁未通过：存在阻断级问题（License 缺失/改坏、密钥泄露、编译失败），须修复后才能合入。")
+        print("\n❌ 门禁未通过：存在阻断级问题（License 不合规、密钥泄露、编译失败），须修复后才能合入。")
         return 1
     print("\n✅ 门禁通过：无阻断级问题；警告/提示见 annotation 与汇总。")
     return 0

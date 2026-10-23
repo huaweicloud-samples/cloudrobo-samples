@@ -92,7 +92,7 @@ for f in files:
             lineno += 1
         elif raw.startswith(" "): lineno += 1
 
-# 4. License 缺失检查（阻断级）：仓库根无 LICENSE 文件
+# 4. License 缺失检查：仓库根无 LICENSE 文件 → 仅提示不阻断（存在但不合规才是阻断级）
 # 5-7. 代码质量/编译/依赖/文档门禁：需外部工具，在 Step 2b 执行
 print(json.dumps(results))
 ' "$CUSTOM_WORDS_RAW")

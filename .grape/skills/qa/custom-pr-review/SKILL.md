@@ -1,6 +1,6 @@
 ---
 name: custom-pr-review
-version: 2.0.0
+version: 2.0.1
 description: |
   PR 多门禁检视技能。对 PR 变更文件执行 7 类门禁检查（代码质量/编译构建/依赖漏洞/License 合规/密钥泄露/敏感词/文档规范），
   阻断级问题标注 ❌、警告级标注 ⚠️，全部结果随检视评论报告。
@@ -15,7 +15,7 @@ tools:
 
 1. **CLI 优先**：凡 grape CLI 能做的走 CLI，禁止绕过直连 API；`$GRAPE_SESSION_TOKEN` 自动注入，不探索其他 token。
 2. **任务上下文先行**：执行前先读 `grape tasks current` + `grape issues detail`，明确已做/待做。
-3. **分级报告**：阻断级（License 缺失/改坏、密钥泄露、编译失败）标注 ❌ 须修复；警告级（代码风格、文档规范）标注 ⚠️ 仅提示；敏感词维持仅提示不阻断。
+3. **分级报告**：阻断级（License 改坏、密钥泄露、编译失败）标注 ❌ 须修复；License 缺失仅提示不阻断；警告级（代码风格、文档规范）标注 ⚠️ 仅提示；敏感词维持仅提示不阻断。
 4. **仅评论报告**：门禁结果随检视评论报告，不直接阻断合入（合入阻断由 GitHub Actions required checks 实现，非本技能职责）。
 5. **token 不写文件/日志/评论**；403 → 停止并回复「需管理员权限」，不换 token。
 
@@ -78,7 +78,7 @@ PR 检视时对变更文件执行多门禁检查（代码质量/编译构建/依
 | 代码质量 | Python: ruff+black；C++: clang-format+clang-tidy | ⚠️ 警告 |
 | 编译构建 | C++ ROS2 包构建；Python 编译/导入检查 | ❌ 阻断 |
 | 依赖漏洞 | pip-audit（Python 依赖 CVE） | ⚠️ 警告 |
-| License 合规 | 缺失/被改坏（如 is→isno）/不兼容许可 | ❌ 阻断 |
+| License 合规 | 存在时被改坏（如 is→isno）/不兼容许可；缺失仅提示 | ❌ 阻断 |
 | 密钥泄露 | 密码/私钥/AK-SK/token 正则检测 | ❌ 阻断 |
 | 敏感词 | 内部域名+IP（沿用现有规则） | ⚠️ 警告 |
 | 文档规范 | Markdown lint + YAML 校验 | ⚠️ 警告 |

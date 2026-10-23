@@ -1,6 +1,6 @@
 # 门禁检查指南（gate-checks-guide）
 
-> 本指南定义 custom-pr-review v2.0.0 的 7 类门禁检查规则：检测内容、分级标准、正则/工具、降级策略。
+> 本指南定义 custom-pr-review v2.0.1 的 7 类门禁检查规则：检测内容、分级标准、正则/工具、降级策略。
 > 可执行实现见 `pr-review-runbook.md` Step 2/2b；敏感词详细规则见 `sensitive-scan-guide.md`。
 
 ---
@@ -20,7 +20,7 @@
 ### 检测规则
 | 场景 | 检测方式 | 判定 |
 |------|---------|------|
-| License 缺失 | 仓库根目录无 `LICENSE`/`LICENSE.md`/`LICENSE.txt` 文件 | ❌ 阻断 |
+| License 缺失 | 仓库根目录无 `LICENSE`/`LICENSE.md`/`LICENSE.txt` 文件 | ℹ️ 提示（不阻断） |
 | License 被改坏 | `LICENSE` 文件内容含 `is` → `isno` 篡改模式 | ❌ 阻断 |
 | 不兼容许可 | `LICENSE` 文件含 GPL/AGPL 且仓库无 Copyleft 声明 | ❌ 阻断 |
 
@@ -33,7 +33,7 @@ LICENSE_BROKEN = re.compile(r"is\b.*\bisno\b|isno\b.*\bis\b", re.I)
 ### 文件路径识别
 - **仅检查仓库根目录**的 `LICENSE`/`LICENSE.md`/`LICENSE.txt`（`git ls-tree <head>` 根层枚举）。
 - 嵌套资产 LICENSE（如 `samples/.../LICENSE.txt`）**不参与判定**。
-- 独立于 `scan-mode`：`all` 和 `changed` 模式均检查仓库根，避免 `changed` 模式下 LICENSE 未变更时误报缺失。
+- 独立于 `scan-mode`：`all` 和 `changed` 模式均检查仓库根；缺失仅提示，存在则按上表合规判定。
 
 ## 3. 密钥泄露检查（❌ 阻断级）
 
@@ -152,7 +152,7 @@ pip-audit --desc
 
 | 场景 | 输入 | 预期 |
 |------|------|------|
-| License 缺失 | 仓库无 LICENSE 文件 | ❌ 阻断 |
+| License 缺失 | 仓库无 LICENSE 文件 | ℹ️ 提示（不阻断） |
 | License 改坏 | LICENSE 含 is→isno | ❌ 阻断 |
 | 密钥泄露 | diff 含 AKIA... | ❌ 阻断 |
 | 编译失败 | .py 语法错误 | ❌ 阻断 |
