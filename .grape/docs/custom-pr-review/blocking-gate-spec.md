@@ -114,7 +114,7 @@ grape git-repo statuses create \
 
 | 风险 | 影响 | 缓解 |
 |------|------|------|
-| 平台排期不可控 | Med | 未交付前由规则化子集 CI 复算兜底（`scripts/pr_gate.py` + required check `ci`，2026-10-23 起，见 §九 #1）；语义级发现维持评论不阻断 |
+| 平台排期不可控 | Med | 未交付前由规则化子集 CI 复算兜底（`.github/scripts/pr_gate.py` + required check `ci`，2026-10-23 起，见 §九 #1）；语义级发现维持评论不阻断 |
 | 误报导致正常合入被卡 | Med | 阻断级判定收敛并与技能规则同源；应急放行走管理员在保护规则中临时取消 required（平台需提供操作手册） |
 | context 命名变更致 required check 失联 | Med | context 作为稳定契约固化于本文档，变更须同步修订本文档 + 各仓库分支保护 |
 | 检视任务中断未上报（如 agent 崩溃） | Low | status 停留在「无上报」态而非 success，不会误放行；可后续考虑 pending 兜底 |
@@ -129,6 +129,6 @@ grape git-repo statuses create \
 ## 九、修订记录
 
 - **2026-10-23**（随 feat/issue-3 收录进 git 时修订）：
-  1. **推翻 Out of Scope「本仓库不引入 CI 复算」**：规则化阻断子集的 CI 复算门禁已落地——`scripts/pr_gate.py` 接入 `.github/workflows/ci.yml`（job 名 `ci`，分支 feat/issue-3），覆盖编译失败/密钥正则/License 合规三类机器可判定阻断，作为本 spec P0（statuses create）交付前的过渡兜底。**「语义级发现 CI 无法复算」的结论不变**，仍依赖平台交付；`pr_gate.py` 规则与 `gate-checks-guide.md` 同源维护（技能 v2.0.1），漂移风险以同步修订约束。
+  1. **推翻 Out of Scope「本仓库不引入 CI 复算」**：规则化阻断子集的 CI 复算门禁已落地——`.github/scripts/pr_gate.py` 接入 `.github/workflows/ci.yml`（job 名 `ci`，分支 feat/issue-3），覆盖编译失败/密钥正则/License 合规三类机器可判定阻断，作为本 spec P0（statuses create）交付前的过渡兜底。**「语义级发现 CI 无法复算」的结论不变**，仍依赖平台交付；`pr_gate.py` 规则与 `gate-checks-guide.md` 同源维护（技能 v2.0.1），漂移风险以同步修订约束。
   2. **License 门禁规则修订**（维护者定义）：仓库根 LICENSE 缺失 → 仅提示不阻断；存在则须合规（改坏/篡改特征 → 阻断）。技能文档已同步升 v2.0.1，平台侧需重新 `grape skills upload --scope repo` 覆盖注册。
   3. 版本引用更新：背景中技能 v1.1.0 → 现 v2.0.1；§五 SKILL.md 目标版本由 1.1.0→1.2.0 改为 2.0.1→2.1.0。

@@ -23,8 +23,8 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE=$(git merge-base "${{ github.sha }}" "origin/${{ github.base_ref }}")
-            python3 scripts/pr_gate.py --base "$BASE" --head "${{ github.sha }}"
+            python3 .github/scripts/pr_gate.py --base "$BASE" --head "${{ github.sha }}"
           else
             # push 到 main：无 base，全量扫描
-            python3 scripts/pr_gate.py --head "${{ github.sha }}"
+            python3 .github/scripts/pr_gate.py --head "${{ github.sha }}"
           fi

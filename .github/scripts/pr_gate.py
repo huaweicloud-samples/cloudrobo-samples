@@ -11,7 +11,7 @@
   pip-audit（依赖漏洞）、mdl/yamllint（文档规范）、敏感词（内部域名/IP，沿用 v1 仅报告）
 
 用法：
-  python3 scripts/pr_gate.py [--base <sha>] [--head <sha>] [--scan-mode all|changed]
+  python3 .github/scripts/pr_gate.py [--base <sha>] [--head <sha>] [--scan-mode all|changed]
   --scan-mode all     扫描 head 全量文件（默认；License 检查要求全量口径）
   --scan-mode changed 只扫描 base..head 变更文件
 退出码：0 = 门禁通过；1 = 存在阻断级问题；2 = 脚本自身异常
@@ -30,9 +30,9 @@ BLOCK_LEVEL, WARN_LEVEL, INFO_LEVEL = "阻断级", "警告级", "提示"
 SENSITIVE_WORDS = ["huawei.com", "codehub", "myhuaweicloud.com"]
 SENSITIVE_WORDS_FILE = "docs/sensitive-words.txt"  # 存在则合并追加
 
-# 全量脚本扫描时跳过的目录/文件（三方资产/文档/门禁自身）
+# 全量扫描时跳过的目录（三方资产/文档/平台配置；门禁自身已迁入 .github/，随目录跳过）
 SKIP_PARTS = (
-    ".git/", ".github/", ".grape/", "Assets/UrdfImporter/", "scripts/pr_gate.py",
+    ".git/", ".github/", ".grape/", "Assets/UrdfImporter/",
 )
 
 SECRET_PATTERNS = [
