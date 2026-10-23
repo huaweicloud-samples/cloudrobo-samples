@@ -92,6 +92,15 @@ def changed_files(base, head):
     return git_lines("ls-tree", "-r", "--name-only", head)
 
 
+def root_license_files(head):
+    """仓库根目录的 LICENSE 文件（仅根层，嵌套资产 LICENSE 不计入判定）。
+
+    独立于 scan-mode：用 git ls-tree 枚举根层条目，只认 LICENSE/LICENSE.md/LICENSE.txt。
+    """
+    entries = git_lines("ls-tree", head, "--name-only")
+    return [e for e in entries if "/" not in e and e.upper().startswith("LICENSE")]
+
+
 def added_line_no(base, head, path):
     """变更文件中「新增行」的行号集合（无 base 时全量视为新增）。
 
@@ -99,7 +108,7 @@ def added_line_no(base, head, path):
     该行本身已计入 hunk；逐行推进时起始行应按 `n-1` 起算（首个内容行即第 n 行）。
     """
     if base:
-        r = sh(["git", "diff", base, head, "--", path, "-U0"])
+        r = sh(["git", "diff", "-U0", base, head, "--", path])
         if r.returncode != 0:
             return set()
         nums = set()
@@ -166,17 +175,18 @@ def main():
                     blocking.append((path, idx, f"密钥泄露（{desc}）", line.strip()[:160]))
                     break
 
-    # ---------- ③ License 门禁（阻断级）：缺失 / 被改坏 ----------
-    licenses = [f for f in files if os.path.basename(f).upper().startswith("LICENSE")]
-    if not licenses:
-        blocking.append(("(repository)", 0, "License 缺失", "仓库/变更范围内未发现 LICENSE 文件"))
-    for path in licenses:
+    # ---------- ③ License 门禁（阻断级）：仓库根 LICENSE 缺失 / 被改坏 ----------
+    # 独立于 scan-mode：只检查仓库根目录 LICENSE，嵌套资产 LICENSE 不参与判定
+    # （gate-checks-guide.md §2「仓库根目录」）。changed 模式下 LICENSE 未变更不误报。
+    root_licenses = root_license_files(head)
+    if not root_licenses:
+        blocking.append(("(repository)", 0, "License 缺失", "仓库根目录无 LICENSE/LICENSE.md/LICENSE.txt"))
+    for path in root_licenses:
         try:
-            with open(path, encoding="utf-8", errors="ignore") as fh:
-                content = fh.read()
-        except OSError:
+            content = sh(["git", "show", f"{head}:{path}"]).stdout
+        except Exception:
             continue
-        if not any(s in content.lower() for s in LICENSE_OK_SNIPPETS):
+        if not content or not any(s in content.lower() for s in LICENSE_OK_SNIPPETS):
             blocking.append((path, 1, "License 内容被改坏或为空", "未识别到有效许可声明指纹"))
         for hint in LICENSE_TAMPER_HINTS:
             if re.search(hint, content, re.IGNORECASE):
@@ -184,6 +194,10 @@ def main():
                 break
 
     # ---------- ④ 警告级：工具化检查（缺失自动 SKIP） ----------
+
+    # 工具 traceback 噪音过滤（shim 损坏 ModuleNotFoundError 等刷入警告）
+    _TRACEBACK_NOISE = re.compile(r"^(?:Traceback|File |    \w+Error|ModuleNotFoundError|ImportError)")
+
     def tool_check(name, cmd, cwd=None, parse=None):
         if not shutil.which(cmd[0]):
             skips.append(f"{name}: 工具未安装，SKIP")
@@ -193,6 +207,8 @@ def main():
             return
         out = (r.stdout + r.stderr).strip().splitlines()
         for ln in out[:50]:
+            if _TRACEBACK_NOISE.match(ln.lstrip()):
+                continue
             m = parse(ln) if parse else None
             if m:
                 path_, line, msg = m
@@ -225,7 +241,11 @@ def main():
     # ---------- ⑤ 敏感词（提示级，沿用 v1 仅报告不阻断） ----------
     words = load_sensitive_words()
     ip_pat = re.compile(
-        r"(?<![\w.])((?:\d{1,3}\.){3}\d{1,3})(?![\w.])|(?<![\w:])([0-9a-fA-F]{0,4}:[0-9a-fA-F:]{2,39})(?![\w:])"
+        r"(?<![\w.])((?:\d{1,3}\.){3}\d{1,3})(?![\w.])"
+        r"|(?<![\w:])([0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4}){7}(?![\w:])"
+        r"|(?:[0-9a-fA-F]{1,4}:){1,7}:(?:[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4}){0,6})?(?![\w:])"
+        r"|:(?::[0-9a-fA-F]{1,4}){1,7}(?![\w:])"
+        r"|(?:[0-9a-fA-F]{1,4}:){2,}(?::[0-9a-fA-F]{1,4}){1,4}(?![\w:]))"
     )
     for path in text_files:
         added = added_line_no(base, head, path)

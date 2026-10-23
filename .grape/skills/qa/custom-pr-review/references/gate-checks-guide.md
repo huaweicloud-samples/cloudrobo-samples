@@ -20,7 +20,7 @@
 ### 检测规则
 | 场景 | 检测方式 | 判定 |
 |------|---------|------|
-| License 缺失 | 仓库根目录无 `LICENSE` 文件 | ❌ 阻断 |
+| License 缺失 | 仓库根目录无 `LICENSE`/`LICENSE.md`/`LICENSE.txt` 文件 | ❌ 阻断 |
 | License 被改坏 | `LICENSE` 文件内容含 `is` → `isno` 篡改模式 | ❌ 阻断 |
 | 不兼容许可 | `LICENSE` 文件含 GPL/AGPL 且仓库无 Copyleft 声明 | ❌ 阻断 |
 
@@ -31,7 +31,9 @@ LICENSE_BROKEN = re.compile(r"is\b.*\bisno\b|isno\b.*\bis\b", re.I)
 - `is→isno` 篡改检测：匹配同一行或相邻行同时出现 `is` 和 `isno` 的模式。
 
 ### 文件路径识别
-- 文件名含 `license`（大小写不敏感）或路径为 `LICENSE`/`LICENSE.md`/`LICENSE.txt`。
+- **仅检查仓库根目录**的 `LICENSE`/`LICENSE.md`/`LICENSE.txt`（`git ls-tree <head>` 根层枚举）。
+- 嵌套资产 LICENSE（如 `samples/.../LICENSE.txt`）**不参与判定**。
+- 独立于 `scan-mode`：`all` 和 `changed` 模式均检查仓库根，避免 `changed` 模式下 LICENSE 未变更时误报缺失。
 
 ## 3. 密钥泄露检查（❌ 阻断级）
 
