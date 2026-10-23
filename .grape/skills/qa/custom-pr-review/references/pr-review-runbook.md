@@ -28,7 +28,6 @@ PR_FILES_JSON=$(grape git-repo pulls files --owner "$REPO_OWNER" --repo "$REPO_N
 ### Step 2 · 执行 4 类警告级门禁扫描（必做）
 
 > 各门禁检测规则/正则/分级标准详见 `references/gate-checks-guide.md`。下方给出**可直接执行**的统一扫描脚本（python3，输出 JSON）。
-> 阻断级门禁（编译构建/密钥泄露/License 合规）由仓库 CI required check `ci`（`.github/scripts/pr_gate.py`）承担，本脚本不扫描、不报告 ❌。
 
 ```bash
 CUSTOM_WORDS_RAW=$(grape git-repo contents --owner "$REPO_OWNER" --repo "$REPO_NAME" --path "docs/sensitive-words.txt" --raw 2>/dev/null || true)

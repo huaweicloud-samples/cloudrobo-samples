@@ -1,14 +1,9 @@
 # 门禁检查指南（gate-checks-guide）
 
-> 本指南定义 custom-pr-review v2.1.0 的 4 类警告级门禁检查规则：检测内容、分级标准、正则/工具、降级策略。
+> 本指南定义 custom-pr-review v2.1.1 的 4 类警告级门禁检查规则：检测内容、分级标准、正则/工具、降级策略。
 > 可执行实现见 `pr-review-runbook.md` Step 2/2b；敏感词详细规则见 `sensitive-scan-guide.md`。
 
 ---
-
-## 0. 职责边界（2026-10-23 起）
-
-- **阻断级门禁（编译构建/密钥泄露/License 合规）已移出本技能**：由仓库 CI required check `ci`（`.github/scripts/pr_gate.py`）独占承担，本技能不检视、不判定、不报告 ❌。
-- 本技能仅产出**警告级**结论与**敏感词提示**；工具缺失时降级为 SKIP+备注，不中断检视。
 
 ## 1. 分级策略
 
@@ -102,4 +97,3 @@ pip-audit --desc
 | 文档 lint | mdl 报警 | ⚠️ 警告 |
 | 工具缺失 | ruff 未安装 | SKIP+备注 |
 | 全部通过 | 无问题 | 评论仅含审查结论 |
-| 阻断级场景 | 编译失败/密钥泄露/License | 不属于本技能：由 CI 门禁 `.github/scripts/pr_gate.py` 覆盖 |
