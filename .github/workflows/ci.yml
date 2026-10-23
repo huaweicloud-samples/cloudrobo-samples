@@ -6,6 +6,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   ci:
     name: ci
@@ -13,5 +16,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Placeholder check
-        run: echo "CI placeholder passed"
+        with:
+          fetch-depth: 0  # pr_gate 需要 base/head 两个 commit 做 diff 与 git show
+
+      - name: PR gate（阻断级：编译/密钥/License；警告与敏感词仅 annotation）
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE=$(git merge-base "${{ github.sha }}" "origin/${{ github.base_ref }}")
+            python3 scripts/pr_gate.py --base "$BASE" --head "${{ github.sha }}"
+          else
+            # push 到 main：无 base，全量扫描
+            python3 scripts/pr_gate.py --head "${{ github.sha }}"
+          fi
