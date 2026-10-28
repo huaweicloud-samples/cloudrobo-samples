@@ -314,6 +314,8 @@ def normalize_joint_limits(
             joint_data["max_velocity"] = default_velocity
         if float(joint_data.get("max_acceleration") or 0.0) == 0.0:
             joint_data["max_acceleration"] = default_acceleration
+        joint_data["max_velocity"] = float(joint_data["max_velocity"])
+        joint_data["max_acceleration"] = float(joint_data["max_acceleration"])
 
     dump_yaml(limits_path, limits)
 
