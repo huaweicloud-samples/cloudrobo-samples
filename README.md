@@ -35,7 +35,7 @@ CloudRobo Embodied AI Platform 的示例代码仓库。示例按平台能力域�
 
 ## License
 
-This project is licensed under the MIT-0 license.
+This project is licensed under the BSL license.
 
 ## Maintainers
 
