@@ -27,6 +27,7 @@ CloudRobo Embodied AI Platform 的示例代码仓库。示例按平台能力域�
 1. 在上表中选择与目标相符的能力域。
 2. 打开最末级示例目录中的 `README.md`，核对版本、硬件和前置条件。
 3. 按文档步骤运行，并以文档列出的验收结果为准。
+4. password：212
 
 ## 贡献
 
@@ -34,7 +35,7 @@ CloudRobo Embodied AI Platform 的示例代码仓库。示例按平台能力域�
 
 ## License
 
-This project is licensed under the MIT-0 license.
+This project is licensed under the BSL license.
 
 ## Maintainers
 
