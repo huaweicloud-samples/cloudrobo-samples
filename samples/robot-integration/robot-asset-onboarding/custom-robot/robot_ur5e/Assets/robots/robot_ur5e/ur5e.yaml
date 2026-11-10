@@ -15,6 +15,14 @@ topic_controller:
     joint_names:
     - "left_finger_joint"
     - "right_finger_joint"
+    gripper_command_topic: "/hand_gripper_controller"
+    gripper_positions:
+      open:
+        left_finger_joint: 0.04
+        right_finger_joint: 0.04
+      close:
+        left_finger_joint: 0.0
+        right_finger_joint: 0.0
 init_joints:
   shoulder_pan_joint: 0.0
   shoulder_lift_joint: -1.9373155

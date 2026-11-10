@@ -4,3 +4,4 @@ __pycache__/
 .pytest_cache/
 *.collision_bak
 samples/robot-integration/robot-asset-onboarding/custom-robot/robot_ur5e/thumbnail.png
+.idea/

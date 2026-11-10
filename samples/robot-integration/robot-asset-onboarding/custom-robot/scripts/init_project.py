@@ -1,4 +1,7 @@
+import argparse
+import json
 import os
+import re
 import shutil
 import sys
 
@@ -11,15 +14,17 @@ SOURCE_DIR_NAME = "robot_ur5e"
 
 # 需要完全排除（不复制）的路径列表
 # 注意：这里只放真正不需要保留目录结构的文件夹
-EXCLUDE_PATHS = [
-    "Assets/robots/robot_ur5e/ur5e_description/config",
-]
+EXCLUDE_PATHS = []
 
 # 需要完全清空的目录列表 (相对于 SOURCE_DIR)
 # 这些目录只保留空壳，删除下面所有子目录和文件
+# 注意：description 的 CMakeLists.txt 会 install(DIRECTORY config ...)，
+# 所以 config 必须保留空壳目录，否则 colcon build 会在 configure 阶段报
+# "install DIRECTORY given directory config which does not exist"。
 CLEAR_DIRS = [
     "Assets/UrdfImporter",
     "Assets/robots/robot_ur5e/ur5e_config",
+    "Assets/robots/robot_ur5e/ur5e_description/config",
     "Assets/robots/robot_ur5e/ur5e_description/meshes",
     "Assets/robots/robot_ur5e/ur5e_description/urdf",
 ]
@@ -49,6 +54,20 @@ GRIPPER_CONTROLLER_CONTENT = "// define code\n"
 
 # 需要替换文件内容的扩展名
 TEXT_REPLACE_EXTENSIONS = ['.urdf', '.xacro', '.yaml', '.yml', '.json', '.txt', '.cfg', '.py', '.sh', '.xml']
+
+# 机器人名统一格式：小写字母开头，单词之间用单个下划线分隔
+ROBOT_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$")
+
+
+def robot_name_arg(value: str) -> str:
+    if not ROBOT_NAME_PATTERN.fullmatch(value):
+        raise argparse.ArgumentTypeError(
+            "robot_name must start with a lowercase letter and contain only "
+            "lowercase letters, digits, and single underscores; "
+            "underscores cannot be leading, trailing, or consecutive. "
+            "Examples: r1, ur5e, galaxi_r1, robot_01"
+        )
+    return value
 
 
 # ============================================
@@ -275,13 +294,55 @@ def create_new_project(source_dir, target_dir, robot_name):
         dirnames[:] = new_dirnames
 
 
+def copy_scripts(script_dir, target_dir):
+    """把 scripts/ 复制到目标工程，使其与 Assets/ 平级"""
+    target_scripts = os.path.join(target_dir, "scripts")
+    if os.path.exists(target_scripts):
+        shutil.rmtree(target_scripts)
+    shutil.copytree(
+        script_dir,
+        target_scripts,
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+    )
+    print(f"[脚本] 已复制 scripts -> {target_scripts}")
+
+
+def init_metadata(target_robot_dir, robot_name):
+    """在目标机器人目录下生成一份初版 metadata.json"""
+    metadata_path = os.path.join(target_robot_dir, "metadata.json")
+    os.makedirs(target_robot_dir, exist_ok=True)
+
+    metadata = {
+        "robot_type": robot_name,
+        "record_topic": [],
+    }
+
+    with open(metadata_path, "w", encoding="utf-8") as f:
+        json.dump(metadata, f, ensure_ascii=False, indent=4)
+        f.write("\n")
+
+    print(f"已生成初版 metadata.json: {metadata_path}")
+
+
 def main():
-    # 1. 获取机器人名称
-    if len(sys.argv) > 1:
-        robot_name = sys.argv[1]
-    else:
-        robot_name = DEFAULT_ROBOT_NAME
+    # 1. 获取并统一校验机器人名称
+    parser = argparse.ArgumentParser(description="Initialize a custom robot project.")
+    parser.add_argument(
+        "robot_name",
+        type=robot_name_arg,
+        nargs="?",
+        default=DEFAULT_ROBOT_NAME,
+        help="robot name, e.g. r1, ur5e, galaxi_r1",
+    )
+    args = parser.parse_args()
+    robot_name = args.robot_name
+
+    if len(sys.argv) == 1:
         print(f"未指定机器人名称，使用默认值: {robot_name}")
+
+    if robot_name == "ur5e":
+        print("[错误] 机器人名不能为 'ur5e'（会覆盖模板工程 robot_ur5e）")
+        sys.exit(1)
 
     # 2. 动态定位路径
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -304,6 +365,13 @@ def main():
 
     # 3. 执行创建
     create_new_project(source_dir, target_dir, robot_name)
+
+    # 4. 复制 scripts 到目标工程（与 Assets 平级）
+    copy_scripts(script_dir, target_dir)
+
+    # 5. 最后初始化初版 metadata.json
+    target_robot_dir = os.path.join(target_dir, "Assets", "robots", f"robot_{robot_name}")
+    init_metadata(target_robot_dir, robot_name)
 
     print("-" * 50)
     print("新工程创建完成！")
