@@ -2,7 +2,7 @@
 # 说明:
 #   - 客户环境需自备: Python 3.10, torch, RoboTwin 仓库(含 XPolicyLab submodule), sapien/mplib
 #   - 桥接层自身仅依赖以下包
-#   - msgpack-numpy 由 msgpack_numpy_stub.py + sitecustomize.py 替代, 无需安装
+#   - 如模型适配器需要 msgpack-numpy 等扩展，请按实际适配器自行追加，仓库内不提供替代实现
 
 websockets>=13.0
 msgpack>=1.0.8
