@@ -13,7 +13,7 @@
 | 适用平台版本 | CloudRobo Embodied AI Platform（仓库 `integration/26.10.0` 基线）；RoboTwin 2.0 官方环境 |
 | 硬件前置 | 至少 1 张 NVIDIA GPU（按 RoboTwin 官方要求配置 CUDA/驱动）；≥ 32 GB 内存；≥ 100 GB 可用磁盘（资产、日志与评测视频） |
 | 软件前置 | Ubuntu 20.04/22.04、Python 3.10、RoboTwin 2.0（含 XPolicyLab submodule、sapien、curobo）；桥接层仅需 `websockets`/`msgpack`/`numpy` |
-| 最终效果 | 官方脚本输出 `[CONNECTED]` → `Success! n / m`，并生成 `Final success rate` 与 `eval_result/**/episode*.mp4` 视频产物 |
+| 最终效果 | 官方脚本输出 `[CONNECTED]` → 逐 episode 打印 `Success!`，并汇总 `Success rate: <suc>/<test_num> => …%`、收尾 `Final success rate: x/y = z%`，同时生成 `eval_result/**/episode*.mp4` 视频产物 |
 
 ## 1. 桥接层功能
 
@@ -34,11 +34,12 @@
 
 ## 3. 交付物
 
-除本使用说明外，桥接层程序共 8 个文件，另附 2 个种子文件用于重现榜单成绩：
+除本使用说明外，桥接层程序共 8 个文件，另附 1 个示例元数据文件与 2 个种子文件用于重现榜单成绩：
 
 ```text
 robotwin_bridge/
 ├── main.py                 入口 (解析参数、生命周期; SIGTERM 优雅退出)
+├── manifest.yaml           示例元数据 (maturity: adaptation-required)
 ├── server.py               XPolicyLab PolicyServer 桥接 (后台线程, 按模型 protocol 自动路由)
 ├── models/                 模型适配层 (可插拔)
 │   ├── __init__.py         注册表: get_model/按模型 metadata.protocol 自动路由
@@ -139,6 +140,7 @@ bash scripts/eval_policy.sh multitask \
   --env-cfg-type arx_x5 \
   --eval-env-conda-env <robotwin_env> \
   --action-type joint \
+  --policy-name bridge \
   --enable-remote \
   --policy-server-ip 127.0.0.1 --policy-server-port 5695
 ```
@@ -147,7 +149,7 @@ bash scripts/eval_policy.sh multitask \
 
 - 任务全集由 `env_cfg/eval/all_tasks.yml` 的 `tasks` 字段决定（以该文件为准，不在文档中写死数量）；只评单个任务时把该文件 `tasks` 裁成一项即可
 - **任务配置有两类**：`demo_clean`（默认，干净场景）与 `demo_randomized`（随机化场景，物体/纹理/光照更强泛化挑战）；改 `--task-config demo_randomized` 再执行一次即可跑另一类，或在 yml 的 `tasks` 条目上按任务单独覆写
-- `--enable-remote` 表示直连**已预启动**的远端 policy server（即桥接层），本地只跑 SAPIEN 仿真客户端，无需 `--ckpt-name` / `--policy-conda-env` / `--policy-name` 本地适配器
+- `--enable-remote` 表示直连**已预启动**的远端 policy server（即桥接层），本地只跑 SAPIEN 仿真客户端，无需 `--ckpt-name` / `--policy-conda-env` 本地适配器；`--policy-name` 仍为必填参数（上游 `scripts/eval_policy_multitask.py` 中 `required=True`，与是否 `--enable-remote` 无关，用作结果标签），示例统一取 `bridge`
 
 **并发路数怎么算（关键）**
 
@@ -156,7 +158,7 @@ bash scripts/eval_policy.sh multitask \
 - **GPU 预算** = `len(gpu_ids) × jobs_per_gpu`。官方 yml 默认 `gpu_ids: "0-7"`（8 卡）`jobs_per_gpu: 1` → 预算 8；按客户实际 GPU 数在 yml 中调整（如 4 卡改 `gpu_ids: "0-3"` → 预算 4）
 - **端点数** = 命令行 `--policy-server-ip/--policy-server-port` 传了几对（`--policy-server-ip` 是 append 参数，可重复）。**CLI 传了端点会整组替换 yml 里的 `policy_server_ip/policy_server_port`，不叠加**；不传则回落到 yml 配置（官方默认 4 个端口 `[18080..18083]`）
 
-| 传法 | 端点数 | GPU 预算 | 实际并发 | 50 任务走向 |
+| 传法 | 端点数 | GPU 预算 | 实际并发 | 全部任务走向 |
 |---|---|---|---|---|
 | 传 1 对（如上例 5695） | 1 | 8 | min(8,1)=**1** | 全部串行走 5695 |
 | 传 4 对（5695~5698） | 4 | 8 | min(8,4)=**4** | 4 路并发轮询 |
@@ -169,6 +171,7 @@ bash scripts/eval_policy.sh multitask \
 bash scripts/eval_policy.sh multitask \
   --config env_cfg/eval/all_tasks.yml --task-config demo_clean \
   --env-cfg-type arx_x5 --eval-env-conda-env <robotwin_env> --action-type joint \
+  --policy-name bridge \
   --enable-remote \
   --policy-server-ip 127.0.0.1 --policy-server-port 5695 \
   --policy-server-ip 127.0.0.1 --policy-server-port 5696 \
@@ -187,7 +190,7 @@ bash scripts/eval_policy.sh multitask \
 | 检查点 | 判定 |
 |---|---|
 | 桥接层日志 | `Connected to wss://<MODEL_HOST>` + `policy server ready` |
-| 官方脚本 | `[CONNECTED]` → `Success! n / m` |
+| 官方脚本 | `[CONNECTED]` → 逐 episode 打印 `Success!` |
 | 最终结果 | `Final success rate: x/y = z%` |
 | 视频产物 | `$ROBOTWIN_ROOT/eval_result/<task>/bridge/<cfg>/<ckpt>/<time>/episode*.mp4` |
 
@@ -197,7 +200,7 @@ bash scripts/eval_policy.sh multitask \
 |---|---|---|
 | 桥接层连接模型 504 / `proxy rejected connection` | 走代理访问内网模型地址 | `export no_proxy` 含内网地址后重启 |
 | 官方脚本连本地 5695 报 `InvalidProxy` | 代理变量残留 | 同样设置 `no_proxy` 含 127.0.0.1 |
-| 端口占用 | 上次进程未退出 | `pkill -9 -f start.sh; pkill -9 -f main.py` 后重起, 或换 `--port` |
+| 端口占用 | 上次进程未退出 | 按监听端口反查后 `kill <PID>`（如 `ss -lptn 'sport = :5695'`；避免 `pkill -f "main.py"` 这类全命令行匹配误杀同名进程），或换 `--port` |
 | `'Robot' object has no attribute 'left_planner'` | curobo 配置路径未生成 | `python scripts/update_embodiment_config_path.py` 后重跑 |
 | `module not found: sapien/torch` | 未激活 RoboTwin 环境 | `conda activate RoboTwin` |
 | wss 握手失败 `CERTIFICATE_VERIFY_FAILED` | 证书非系统可信 CA / hostname 不符 | 私有 CA 用 `--cacert`；受控内网联调用 `--insecure`（生产勿用） |
@@ -219,14 +222,16 @@ bash scripts/eval_policy.sh multitask \
 | `--model` | auto | 模型适配器（默认按模型 metadata.protocol 自动路由；可强制指定，如 `cr-wam`） |
 | `--insecure` | 关 | **不校验**模型证书（仍为 TLS 加密，但无身份验证；仅限受控内网使用） |
 | `--cacert CA_FILE` | 无 | 私有 CA 证书路径，用于严格校验模型证书 |
+| `--log-level` | `INFO` | 日志级别（如 `DEBUG`/`INFO`/`WARNING`），排障时可调低 |
 
 > Token 优先级（与 `main.py` 实现一致）：`--api-key-file` > `--api-key` > `MODEL_API_KEY`。`--api-key-file` 存在时其余两项被忽略；文件内容会自动 `strip()`，权限非 0600 时启动告警。
 
 ## 11. 清理方式
 
 ```bash
-# 1. 停止桥接层（前台 Ctrl-C，或按进程名强制结束）
-pkill -9 -f "main.py" || true
+# 1. 停止桥接层（前台启动用 Ctrl-C；后台启动时按记录的 PID 结束，或按监听端口反查确认为桥接层进程后再 kill）
+ss -lptn 'sport = :5695'   # 核对 PID 与进程名
+kill <PID>
 
 # 2. 删除 token 文件与交付目录
 rm -f ~/.config/robotwin_bridge/api_key
@@ -239,7 +244,7 @@ rm -rf "$ROBOTWIN_ROOT/eval_result"
 
 ## 12. 已知限制
 
-- 仅验证 ARX X5 单臂 + 三相机（`cam_head`/`cam_left_wrist`/`cam_right_wrist`）配置，其他本体需通过 `--camera-map` 与 `--env-cfg-type` 调整，未做兼容性验证。
+- 仅验证 ARX X5 单臂 + 三相机（`cam_head`/`cam_left_wrist`/`cam_right_wrist`）配置，其他本体需通过桥接层 `--camera-map`（§10）与官方 `eval_policy.sh` 的 `--env-cfg-type`（§7，属官方评测入口参数，勿配到桥接层）调整，未做兼容性验证。
 - 桥接层依赖 RoboTwin 官方 XPolicyLab WS 协议与 `scripts/eval_policy.sh` 的 remote 模式；官方接口变更可能导致不可用，需同步适配。
 - 动作按 14 维 joint 处理，`action_type` 非 `joint` 的模型需新增适配器。
 - 模型服务需预先启动，桥接层不做本地推理、不做端点健康检查与自动重试；端口无实例监听时对应任务直接连接失败。

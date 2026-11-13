@@ -7,7 +7,7 @@ tags:
   - robotwin
   - policy-evaluation
   - bridge
-cloudrobo_version: ""
+cloudrobo_version: "integration/26.10.0"
 dependencies:
   - Python 3.10
   - RoboTwin 2.0 (含 XPolicyLab submodule)
