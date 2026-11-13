@@ -10,7 +10,7 @@
 #   - RoboTwin 仓库 (含 XPolicyLab submodule), 通过 --robotwin-root 指定
 #
 # 示例:
-#   ./start.sh --ws-url wss://10.155.71.161:8000/ --port 5695 --robotwin-root /opt/RoboTwin
+#   ./start.sh --ws-url wss://<MODEL_HOST>:8000/ --port 5695 --robotwin-root /opt/RoboTwin
 
 set -euo pipefail
 

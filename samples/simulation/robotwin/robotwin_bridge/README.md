@@ -2,6 +2,19 @@
 
 > RoboTwin 2.0 评测桥接层：在 RoboTwin 2.0 官方环境（XPolicyLab WS 协议）中评测时，将官方评测脚本与华为云远端世界模型（cr-wam 协议，`wss://`）打通。桥接层面向官方脚本暴露本地 `ws://` 端口，对远端模型走 `wss://` 加密通道，并完成 obs/state 与 14 维动作的格式翻译。评测方无需改动任何官方代码。
 
+**成熟度：`adaptation-required`**——需要替换 `<MODEL_HOST>` 与模型 token，并自备 RoboTwin 2.0 环境后才能运行。
+
+## 0. 快速概览
+
+| 项目 | 说明 |
+|---|---|
+| 解决的问题 | 让 RoboTwin 2.0 官方评测脚本无需改动即可调用华为云远端世界模型，完成仿真评测并产出成功率与视频 |
+| 预计耗时 | 约 30–60 分钟（不含 RoboTwin 官方环境安装与资产下载）；全任务评测耗时取决于 GPU 数量与任务集，通常数小时起 |
+| 适用平台版本 | CloudRobo Embodied AI Platform（仓库 `integration/26.10.0` 基线）；RoboTwin 2.0 官方环境 |
+| 硬件前置 | 至少 1 张 NVIDIA GPU（按 RoboTwin 官方要求配置 CUDA/驱动）；≥ 32 GB 内存；≥ 100 GB 可用磁盘（资产、日志与评测视频） |
+| 软件前置 | Ubuntu 20.04/22.04、Python 3.10、RoboTwin 2.0（含 XPolicyLab submodule、sapien、curobo）；桥接层仅需 `websockets`/`msgpack`/`numpy` |
+| 最终效果 | 官方脚本输出 `[CONNECTED]` → `Success! n / m`，并生成 `Final success rate` 与 `eval_result/**/episode*.mp4` 视频产物 |
+
 ## 1. 桥接层功能
 
 | 功能 | 说明 | 实现 |
@@ -21,23 +34,22 @@
 
 ## 3. 交付物
 
-我们除了提供桥接层程序共 8 个文件（另有本使用说明）之外，还额外提供种子文件可用于重现我们的榜单成绩：
+除本使用说明外，桥接层程序共 8 个文件，另附 2 个种子文件用于重现榜单成绩：
 
 ```text
-robotwin/
-├──robotwin_bridge/
-│  ├── main.py                 入口 (解析参数, 生命周期; SIGTERM 优雅退出)
-│  ├── server.py               XPolicyLab PolicyServer 桥接 (后台线程, 按模型 protocol 自动路由)
-│  ├── models/                模型适配层 (可插拔)
-│  │   ├── __init__.py        注册表: get_model/按模型 metadata.protocol 自动路由
-│  │   └── crwam.py           格式翻译 (cr-wam 协议, 相机映射/uint8/14维joint)
-│  ├── policy_client.py        cr-wam 推理客户端 (action queue)
-│  ├── ws_client.py            wss(TLS1.2指定cipher)+Bearer token+msgpack; TLS 三态(见 §5)
-│  ├── requirements.txt        桥接层自身依赖 (仅 websockets/msgpack/numpy)
-│  ├── start.sh                启动脚本 (自动组装 PYTHONPATH, 参数缺失校验)
-│──└──robotwin_cache/        
-│     ├──clean_seen.jsonl     clean类型种子文件
-└─────└──random_seen.jsonl    random类型种子文件
+robotwin_bridge/
+├── main.py                 入口 (解析参数、生命周期; SIGTERM 优雅退出)
+├── server.py               XPolicyLab PolicyServer 桥接 (后台线程, 按模型 protocol 自动路由)
+├── models/                 模型适配层 (可插拔)
+│   ├── __init__.py         注册表: get_model/按模型 metadata.protocol 自动路由
+│   └── crwam.py            格式翻译 (cr-wam 协议, 相机映射/uint8/14维joint)
+├── policy_client.py        cr-wam 推理客户端 (action queue)
+├── ws_client.py            wss(TLS1.2指定cipher)+Bearer token+msgpack; TLS 三态(见 §5)
+├── requirements.txt        桥接层自身依赖 (仅 websockets/msgpack/numpy)
+├── start.sh                启动脚本 (自动组装 PYTHONPATH, 参数缺失校验)
+└── robotwin_cache/         种子文件
+    ├── clean_seen.jsonl    clean 类型种子文件
+    └── random_unseen.jsonl random 类型种子文件
 ```
 
 
@@ -65,13 +77,13 @@ cd ~/robotwin_bridge && ./start.sh \
 # 期望: "[BridgeServer] policy server ready at ws://127.0.0.1:5695"
 ```
 
-Token 三选一（生产推荐 ①，优先级恒为 ① > ② > ③）：
+Token 三选一（生产推荐 ①，实际优先级 ① > ② > ③，与 `main.py` 实现一致）：
 
 | 方式 | 用法 | 安全性 |
 |---|---|---|
 | ① 文件（推荐） | `--api-key-file /path/keyfile`（文件 `chmod 600`） | 只在进程内存, 不落 ps/env, 受 OS 权限保护 |
-| ② 环境变量 | `export MODEL_API_KEY=<token>` | 同级任意进程可经 `/proc/<pid>/environ` 读取 |
-| ③ 命令行 | `--api-key <token>` | `ps aux` 对**所有用户**可见（不建议生产） |
+| ② 命令行 | `--api-key <token>` | `ps aux` 对**所有用户**可见（不建议生产） |
+| ③ 环境变量 | `export MODEL_API_KEY=<token>` | 同级任意进程可经 `/proc/<pid>/environ` 读取 |
 
 > key 文件内容会自动 `strip()`（容忍末尾换行）；若文件对非 owner 可读（非 0600），启动时打 Warning 提示收紧。
 
@@ -116,7 +128,7 @@ python scripts/eval_policy_xpolicylab.py \
   --test_num 5 --policy_name bridge --root_dir $ROBOTWIN_ROOT
 ```
 
-**全部 50 个任务（官方 multitask 入口，无需写循环）**：RoboTwin 官方提供 `scripts/eval_policy.sh` 统一评测入口（2026-08 起），`multitask` 子命令读取 `env_cfg/eval/all_tasks.yml`（官方维护的全部 50 个任务与 GPU 设置），一次跑完并多任务/多 GPU 调度；桥接层本身就是预启动的 XPolicyLab policy server，配合官方 remote 模式直连即可：
+**全部任务（官方 multitask 入口，无需写循环）**：RoboTwin 官方提供 `scripts/eval_policy.sh` 统一评测入口（2026-08 起），`multitask` 子命令读取 `env_cfg/eval/all_tasks.yml`（官方维护的全部任务与 GPU 设置），一次跑完并多任务/多 GPU 调度；桥接层本身就是预启动的 XPolicyLab policy server，配合官方 remote 模式直连即可：
 
 ```bash
 conda activate <robotwin_env>
@@ -133,7 +145,7 @@ bash scripts/eval_policy.sh multitask \
 
 **任务与配置说明**
 
-- 任务全集由 `env_cfg/eval/all_tasks.yml` 的 `tasks` 字段决定（默认全部 50 个）；只评单个任务时把该文件 `tasks` 裁成一项即可
+- 任务全集由 `env_cfg/eval/all_tasks.yml` 的 `tasks` 字段决定（以该文件为准，不在文档中写死数量）；只评单个任务时把该文件 `tasks` 裁成一项即可
 - **任务配置有两类**：`demo_clean`（默认，干净场景）与 `demo_randomized`（随机化场景，物体/纹理/光照更强泛化挑战）；改 `--task-config demo_randomized` 再执行一次即可跑另一类，或在 yml 的 `tasks` 条目上按任务单独覆写
 - `--enable-remote` 表示直连**已预启动**的远端 policy server（即桥接层），本地只跑 SAPIEN 仿真客户端，无需 `--ckpt-name` / `--policy-conda-env` / `--policy-name` 本地适配器
 
@@ -200,9 +212,36 @@ bash scripts/eval_policy.sh multitask \
 | `--port` | 5695 | 桥接层监听端口（官方脚本连接） |
 | `--host` | 0.0.0.0 | 监听地址 |
 | `--api-key-file KEY_FILE` | 无 | **推荐**：从受保护文件（0600）读 token，优先级最高 |
-| `--api-key` / `MODEL_API_KEY` | 空 | 模型鉴权 token（`--api-key` 在进程列表可见，env 会被同级进程读取） |
+| `--api-key` | 空 | 模型鉴权 token（命令行传入，`ps aux` 对所有用户可见，不建议生产） |
+| `MODEL_API_KEY`（环境变量） | 空 | 模型鉴权 token 的环境变量形式（同级进程可读 `/proc/<pid>/environ`） |
 | `--camera-map XPL=REMOTE` | 默认映射 | 相机键映射，可多次 |
 | `--n-action-steps` | chunk 全用 | 每次推理消费步数 |
 | `--model` | auto | 模型适配器（默认按模型 metadata.protocol 自动路由；可强制指定，如 `cr-wam`） |
 | `--insecure` | 关 | **不校验**模型证书（仍为 TLS 加密，但无身份验证；仅限受控内网使用） |
 | `--cacert CA_FILE` | 无 | 私有 CA 证书路径，用于严格校验模型证书 |
+
+> Token 优先级（与 `main.py` 实现一致）：`--api-key-file` > `--api-key` > `MODEL_API_KEY`。`--api-key-file` 存在时其余两项被忽略；文件内容会自动 `strip()`，权限非 0600 时启动告警。
+
+## 11. 清理方式
+
+```bash
+# 1. 停止桥接层（前台 Ctrl-C，或按进程名强制结束）
+pkill -9 -f "main.py" || true
+
+# 2. 删除 token 文件与交付目录
+rm -f ~/.config/robotwin_bridge/api_key
+rmdir ~/.config/robotwin_bridge 2>/dev/null || true
+rm -rf ~/robotwin_bridge
+
+# 3. 可选：删除评测产物（保留 RoboTwin 环境与 robotwin_cache 种子文件）
+rm -rf "$ROBOTWIN_ROOT/eval_result"
+```
+
+## 12. 已知限制
+
+- 仅验证 ARX X5 单臂 + 三相机（`cam_head`/`cam_left_wrist`/`cam_right_wrist`）配置，其他本体需通过 `--camera-map` 与 `--env-cfg-type` 调整，未做兼容性验证。
+- 桥接层依赖 RoboTwin 官方 XPolicyLab WS 协议与 `scripts/eval_policy.sh` 的 remote 模式；官方接口变更可能导致不可用，需同步适配。
+- 动作按 14 维 joint 处理，`action_type` 非 `joint` 的模型需新增适配器。
+- 模型服务需预先启动，桥接层不做本地推理、不做端点健康检查与自动重试；端口无实例监听时对应任务直接连接失败。
+- 仅支持 TLS1.2+ 的 `wss://` 加密通道，模型侧不支持 TLS1.2 时无法握手。
+- `robotwin_cache/` 中的 seed 文件用于复现榜单成绩，不构成完整任务集；任务集以 `env_cfg/eval/all_tasks.yml` 为准。

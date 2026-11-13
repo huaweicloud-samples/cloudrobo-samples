@@ -19,6 +19,7 @@ CloudRobo Embodied AI Platform 的示例代码仓库。示例按平台能力域�
 当前已提供的示例：
 
 - [`custom-robot`](samples/robot-integration/robot-asset-onboarding/custom-robot/)：机器人资产接入示例，保留原始工程目录与代码结构。
+- [`robotwin_bridge`](samples/simulation/robotwin/robotwin_bridge/)：RoboTwin 2.0 官方评测脚本与 CloudRobo 远端世界模型的桥接层（成熟度 `adaptation-required`，需替换模型地址与 token）。
 
 目录与示例撰写要求见 [示例规范](docs/conventions/sample-authoring.md)。
 

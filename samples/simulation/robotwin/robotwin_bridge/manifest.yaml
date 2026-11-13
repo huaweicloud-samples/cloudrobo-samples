@@ -1,0 +1,22 @@
+id: robotwin_bridge
+title: RoboTwin 2.0 远端世界模型评测桥接层
+summary: 在不改动 RoboTwin 官方代码的前提下，将 XPolicyLab 评测脚本与 CloudRobo 远端世界模型（wss）打通并完成格式翻译。
+maturity: adaptation-required
+tags:
+  - simulation
+  - robotwin
+  - policy-evaluation
+  - bridge
+cloudrobo_version: ""
+dependencies:
+  - Python 3.10
+  - RoboTwin 2.0 (含 XPolicyLab submodule)
+  - websockets>=13.0
+  - msgpack>=1.0.8
+  - numpy>=1.23
+hardware:
+  - NVIDIA GPU (CUDA)
+  - 32 GB+ RAM
+  - 100 GB+ free disk
+maintainers:
+  - "@rebornczs"
