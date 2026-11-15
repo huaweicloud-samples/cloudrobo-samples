@@ -39,9 +39,9 @@ RoboTwin 2.0 官方评测脚本使用 WS，华为云 CloudRobo 远端世界模�
 ## 2. 前置要求（评测方自备）
 
 - Python 3.10 + RoboTwin 2.0 官方环境（含 XPolicyLab submodule、sapien、curobo 等，按官方 INSTALLATION 安装）：
-  ````bash
+  ```bash
   git clone --recurse-submodules https://github.com/RoboTwin-Platform/RoboTwin.git
-  ````
+  ```
 - 评测资产已解压到 `$ROBOTWIN_ROOT/assets/`（background_texture/embodiments/objects）
 - 模型服务端 wss 地址及 token（模型侧鉴权必填）
 
@@ -69,7 +69,7 @@ robotwin/
 
 ## 4. 部署步骤
 
-````bash
+```bash
 # 4.1 放置交付包 (建议放在 RoboTwin 根目录下, 与官方代码同级)
 cd $ROBOTWIN_ROOT
 # 将 robotwin_bridge/ 目录整体放入 $ROBOTWIN_ROOT/, 然后:
@@ -91,7 +91,7 @@ cd $ROBOTWIN_ROOT/robotwin_bridge && ./start.sh \
   --robotwin-root $ROBOTWIN_ROOT \
   --api-key-file ~/.config/robotwin_bridge/api_key
 # 期望: "[BridgeServer] policy server ready at ws://127.0.0.1:5695"
-````
+```
 
 Token 三选一（生产推荐 ①，优先级恒为 ① > ② > ③）：
 
@@ -101,11 +101,11 @@ Token 三选一（生产推荐 ①，优先级恒为 ① > ② > ③）：
 | ② 环境变量 | `export MODEL_API_KEY=<token>` | 同级任意进程可经 `/proc/<pid>/environ` 读取 |
 | ③ 命令行 | `--api-key <token>` | `ps aux` 对**所有用户**可见（不建议生产） |
 
-````bash
+```bash
 # 推荐做法
 mkdir -p ~/.config/robotwin_bridge && umask 077
 printf '%s\n' 'YOUR_API_KEY' > ~/.config/robotwin_bridge/api_key && chmod 0600 ~/.config/robotwin_bridge/api_key
-````
+```
 
 ## 5. TLS 校验模式
 
@@ -123,16 +123,16 @@ printf '%s\n' 'YOUR_API_KEY' > ~/.config/robotwin_bridge/api_key && chmod 0600 ~
 
 > RoboTwin 的 curobo 配置含本机绝对路径，每台评测机首次运行前需生成一次；否则评测会报 `'Robot' object has no attribute 'left_planner'`。
 
-````bash
+```bash
 conda activate <robotwin_env>  # RoboTwin 官方环境名 (按实际安装命名, 下同)
 python $ROBOTWIN_ROOT/scripts/update_embodiment_config_path.py
-````
+```
 
 ## 7. 运行评测（不改任何官方代码）
 
 **单任务验证**（先确认链路通）：
 
-````bash
+```bash
 # 另开终端: 使用 RoboTwin 的 conda 环境
 conda activate <robotwin_env>
 cd $ROBOTWIN_ROOT
@@ -140,11 +140,11 @@ python scripts/eval_policy_xpolicylab.py \
   --protocol ws --host 127.0.0.1 --port 5695 \
   --task_name adjust_bottle --task_config demo_clean \
   --test_num 5 --policy_name bridge --root_dir $ROBOTWIN_ROOT
-````
+```
 
 **全部任务（官方 multitask 入口，无需写循环）**：RoboTwin 官方提供 `scripts/eval_policy.sh` 统一评测入口（2026-08 起），`multitask` 子命令读取 `env_cfg/eval/all_tasks.yml`（官方维护的任务与 GPU 设置，截至本文档编写时为 50 个任务，以该 yml 实际内容为准），一次跑完并多任务/多 GPU 调度；桥接层本身就是预启动的 XPolicyLab policy server，配合官方 remote 模式直连即可：
 
-````bash
+```bash
 conda activate <robotwin_env>
 cd $ROBOTWIN_ROOT
 bash scripts/eval_policy.sh multitask \
@@ -155,7 +155,7 @@ bash scripts/eval_policy.sh multitask \
   --action-type joint \
   --enable-remote \
   --policy-server-ip 127.0.0.1 --policy-server-port 5695
-````
+```
 
 **任务与配置说明**
 
@@ -179,7 +179,7 @@ bash scripts/eval_policy.sh multitask \
 
 **多实例并行写法**（8 路为例）：先各起 1 个桥接层实例监听 5695~5702（每个连一个模型服务），再传 8 对端点组成 server 池：
 
-````bash
+```bash
 bash scripts/eval_policy.sh multitask \
   --config env_cfg/eval/all_tasks.yml --task-config demo_clean \
   --env-cfg-type arx_x5 --eval-env-conda-env <robotwin_env> --action-type joint \
@@ -192,7 +192,7 @@ bash scripts/eval_policy.sh multitask \
   --policy-server-ip 127.0.0.1 --policy-server-port 5700 \
   --policy-server-ip 127.0.0.1 --policy-server-port 5701 \
   --policy-server-ip 127.0.0.1 --policy-server-port 5702
-````
+```
 
 > 注意：每个端口必须有桥接层实例在监听才有效；只写端口不启实例，对应任务会连接失败。端点重复会报 `duplicate endpoint`。
 
@@ -239,13 +239,13 @@ bash scripts/eval_policy.sh multitask \
 
 评测完成后，停止桥接层进程即可：
 
-````bash
+```bash
 # 停止桥接层进程
 pkill -f "robotwin_bridge/main.py"
 
 # 停止官方评测脚本（如有残留）
 pkill -f "eval_policy_xpolicylab.py"
-````
+```
 
 ## 12. 已知限制
 
