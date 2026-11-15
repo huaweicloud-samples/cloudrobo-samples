@@ -2,7 +2,7 @@
 # RoboTwin 桥接层启动脚本
 #
 # 用法:
-#   ./start.sh --ws-url wss://<model-host>/ --port 5695 [--api-key <token>]
+#   ./start.sh --ws-url <模型服务 wss 地址> --port 5695 [--api-key <token>]
 #   # 或 export MODEL_API_KEY=<token> 后省略 --api-key
 #
 # 前置要求 (客户环境):
@@ -10,7 +10,7 @@
 #   - RoboTwin 仓库 (含 XPolicyLab submodule), 通过 --robotwin-root 指定
 #
 # 示例:
-#   ./start.sh --ws-url wss://<MODEL_HOST>:8000/ --port 5695 --robotwin-root /opt/RoboTwin
+#   ./start.sh --ws-url <模型服务 wss 地址> --port 5695 --robotwin-root /opt/RoboTwin
 
 set -euo pipefail
 
