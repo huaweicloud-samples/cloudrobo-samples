@@ -51,20 +51,20 @@ RoboTwin 2.0 官方评测脚本使用 WS，华为云 CloudRobo 远端世界模�
 
 ````text
 robotwin/
-├── robotwin_bridge/
-│   ├── README.md               使用说明
-│   ├── main.py                 入口
-│   ├── server.py               服务端桥接
-│   ├── policy_client.py        推理客户端
-│   ├── ws_client.py            WS/WSS 客户端
-│   ├── requirements.txt        依赖清单
-│   ├── start.sh                启动脚本
-│   ├── models/                 模型适配层
-│   │   ├── __init__.py         注册表
-│   │   └── crwam.py            格式转换
-└── robotwin_cache/
-    ├── clean_seen.jsonl        clean 缓存文件
-    └── random_unseen.jsonl     random 缓存文件
+└── robotwin_bridge/
+    ├── README.md               使用说明
+    ├── main.py                 入口
+    ├── server.py               服务端桥接
+    ├── policy_client.py        推理客户端
+    ├── ws_client.py            WS/WSS 客户端
+    ├── requirements.txt        依赖清单
+    ├── start.sh                启动脚本
+    ├── models/                 模型适配层
+    │   ├── __init__.py         注册表
+    │   └── crwam.py            格式转换
+    └── robotwin_cache/
+        ├── clean_seen.jsonl    clean 缓存文件
+        └── random_unseen.jsonl random 缓存文件
 ````
 
 ## 4. 部署步骤
