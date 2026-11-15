@@ -1,69 +1,93 @@
 # robotwin_bridge 使用说明
 
-> RoboTwin 2.0 评测桥接层：在 RoboTwin 2.0 官方环境（XPolicyLab WS 协议）中评测时，将官方评测脚本与华为云远端世界模型（cr-wam 协议，`wss://`）打通。桥接层面向官方脚本暴露本地 `ws://` 端口，对远端模型走 `wss://` 加密通道，并完成 obs/state 与 14 维动作的格式翻译。评测方无需改动任何官方代码。
+> **成熟度：runnable** — 本示例可直接运行，按文档步骤操作即可完成 RoboTwin 2.0 评测接入。
+
+> RoboTwin 2.0 评测桥接层：在 RoboTwin 2.0 官方环境中评测时，将官方评测脚本与华为云远端世界模型打通。桥接层面向官方脚本暴露本地 ws 端口，对远端模型走 wss 加密通道，并完成 obs/state 与动作的格式转换。评测方无需改动任何官方代码。
+
+## 解决的问题
+
+RoboTwin 2.0 官方评测脚本使用 WS，华为云远端世界模型使用 WSS。桥接层在中间完成两者之间的通信打通与格式转换，评测方**无需改动任何官方代码**即可完成评测。
+
+## 适用平台版本
+
+- RoboTwin 2.0（含 XPolicyLab submodule）
+- Python 3.10
+- 操作系统：Linux
+
+## 硬件 / 软件前置条件
+
+- **硬件**：GPU（仿真评测需要）、可访问模型服务的网络
+- **软件**：RoboTwin 2.0 官方环境（含 sapien、curobo 等，按官方 INSTALLATION 安装）、模型服务端 wss 地址及 token
+- 详见 [§2 前置要求](#2-前置要求评测方自备)
+
+## 最终效果
+
+官方评测脚本成功连接桥接层，完成指定任务评测，输出 `Final success rate: x/y = z%` 及 episode 视频，产物路径见 §8。
 
 ## 1. 桥接层功能
 
 | 功能 | 说明 | 实现 |
 |---|---|---|
-| WS ↔ WSS | 对官方脚本暴露 `ws://127.0.0.1:<port>`，对模型走 `wss://`（TLS1.2 指定 cipher） | `ws_client.py` |
-| 格式转换 | XPolicyLab obs/state → cr-wam（相机键映射、uint8 无 batch、14 维 joint） | `models/crwam.py` |
+| WS ↔ WSS | 对官方脚本暴露本地 ws 端口，对模型走 wss 加密通道 | `ws_client.py` |
+| 格式转换 | XPolicyLab obs/state → CloudRobo-WM-7B-Preview obs/state 格式转换 | `models/crwam.py` |
 | Token 认证 | 连接模型时注入 `Authorization: Bearer <token>` | `ws_client.py` + `main.py` |
 
 ## 2. 前置要求（评测方自备）
 
 - Python 3.10 + RoboTwin 2.0 官方环境（含 XPolicyLab submodule、sapien、curobo 等，按官方 INSTALLATION 安装）：
-  ```bash
+  ````bash
   git clone --recurse-submodules https://github.com/RoboTwin-Platform/RoboTwin.git
-  ```
+  ````
 - 评测资产已解压到 `$ROBOTWIN_ROOT/assets/`（background_texture/embodiments/objects）
-- 模型服务端地址（`wss://`）及 token（模型侧鉴权必填）
+- 模型服务端 wss 地址及 token（模型侧鉴权必填）
 
 ## 3. 交付物
 
-我们除了提供桥接层程序共 8 个文件（另有本使用说明）之外，还额外提供种子文件可用于重现我们的榜单成绩：
+我们除了提供桥接层程序之外，还额外提供缓存文件可用于重现我们的榜单成绩：
 
-```text
+````text
 robotwin/
-├──robotwin_bridge/
-│  ├── main.py                 入口 (解析参数, 生命周期; SIGTERM 优雅退出)
-│  ├── server.py               XPolicyLab PolicyServer 桥接 (后台线程, 按模型 protocol 自动路由)
-│  ├── models/                模型适配层 (可插拔)
-│  │   ├── __init__.py        注册表: get_model/按模型 metadata.protocol 自动路由
-│  │   └── crwam.py           格式翻译 (cr-wam 协议, 相机映射/uint8/14维joint)
-│  ├── policy_client.py        cr-wam 推理客户端 (action queue)
-│  ├── ws_client.py            wss(TLS1.2指定cipher)+Bearer token+msgpack; TLS 三态(见 §5)
-│  ├── requirements.txt        桥接层自身依赖 (仅 websockets/msgpack/numpy)
-│  ├── start.sh                启动脚本 (自动组装 PYTHONPATH, 参数缺失校验)
-│──└──robotwin_cache/        
-│     ├──clean_seen.jsonl     clean类型种子文件
-└─────└──random_seen.jsonl    random类型种子文件
-```
-
+├── robotwin_bridge/
+│   ├── README.md               使用说明
+│   ├── main.py                 入口
+│   ├── server.py               服务端桥接
+│   ├── policy_client.py        推理客户端
+│   ├── ws_client.py            WS/WSS 客户端
+│   ├── requirements.txt        依赖清单
+│   ├── start.sh                启动脚本
+│   ├── models/                 模型适配层
+│   │   ├── __init__.py         注册表
+│   │   └── crwam.py            格式转换
+└── robotwin_cache/
+    ├── clean_seen.jsonl        clean 缓存文件
+    └── random_unseen.jsonl     random 缓存文件
+````
 
 ## 4. 部署步骤
 
-```bash
-# 4.1 放置交付包 (任意可写目录, 建议独立)
-mkdir -p ~/robotwin_bridge
-# 将 robotwin_bridge/ 下文件放入 ~/robotwin_bridge/, 然后:
-pip install -r ~/robotwin_bridge/requirements.txt
-chmod +x ~/robotwin_bridge/start.sh
-# 注: scp/上传/zip 解压会丢失可执行位, 故显式授权; tar 分发(保留权限位)则无需此步
+````bash
+# 4.1 放置交付包 (建议放在 RoboTwin 根目录下, 与官方代码同级)
+cd $ROBOTWIN_ROOT
+# 将 robotwin_bridge/ 目录整体放入 $ROBOTWIN_ROOT/, 然后:
+pip install -r $ROBOTWIN_ROOT/robotwin_bridge/requirements.txt
+# 注: 若 RoboTwin 环境已含 websockets/msgpack/numpy, 可跳过此步
+# 注: robotwin_bridge/ 是独立交付包, 不要提交到 RoboTwin 官方 git 仓库;
+#     若 RoboTwin 是 git clone 的, 建议把 robotwin_bridge/ 加进 .gitignore
+chmod +x $ROBOTWIN_ROOT/robotwin_bridge/start.sh
 
 # 4.2 代理豁免: 评测与本机/模型链路均为内网直连, 默认无需操作
 # (仅当评测机配置了 HTTP 代理且连接报 504 / InvalidProxy 时, 才补下述豁免:
 export no_proxy="localhost,127.0.0.1,<MODEL_HOST>"
 export NO_PROXY="$no_proxy"
 
-# 4.3 启动桥接层 (监听 ws://0.0.0.0:5695, 等待官方脚本连接)
-cd ~/robotwin_bridge && ./start.sh \
-  --ws-url wss://<MODEL_HOST>:8000/ \
+# 4.3 启动桥接层 (监听本地 ws 端口, 等待官方脚本连接)
+cd $ROBOTWIN_ROOT/robotwin_bridge && ./start.sh \
+  --ws-url <模型服务 wss 地址> \
   --port 5695 \
   --robotwin-root $ROBOTWIN_ROOT \
   --api-key-file ~/.config/robotwin_bridge/api_key
 # 期望: "[BridgeServer] policy server ready at ws://127.0.0.1:5695"
-```
+````
 
 Token 三选一（生产推荐 ①，优先级恒为 ① > ② > ③）：
 
@@ -73,17 +97,15 @@ Token 三选一（生产推荐 ①，优先级恒为 ① > ② > ③）：
 | ② 环境变量 | `export MODEL_API_KEY=<token>` | 同级任意进程可经 `/proc/<pid>/environ` 读取 |
 | ③ 命令行 | `--api-key <token>` | `ps aux` 对**所有用户**可见（不建议生产） |
 
-> key 文件内容会自动 `strip()`（容忍末尾换行）；若文件对非 owner 可读（非 0600），启动时打 Warning 提示收紧。
-
-```bash
+````bash
 # 推荐做法
 mkdir -p ~/.config/robotwin_bridge && umask 077
 printf '%s\n' 'YOUR_API_KEY' > ~/.config/robotwin_bridge/api_key && chmod 0600 ~/.config/robotwin_bridge/api_key
-```
+````
 
-## 5. TLS 三态（wss 证书校验模式）
+## 5. TLS 校验模式
 
-桥接层对模型走 `wss://`，默认**严格校验**模型证书；三种模式仅影响证书身份验证，均为 TLS 加密通道（AES-GCM/ChaCha20 对称加密 + ECDHE 密钥协商）：
+桥接层对模型走 wss，默认**严格校验**模型证书；三种模式仅影响证书身份验证，均为 TLS 加密通道：
 
 | 场景 | 参数 | 说明 |
 |---|---|---|
@@ -97,16 +119,16 @@ printf '%s\n' 'YOUR_API_KEY' > ~/.config/robotwin_bridge/api_key && chmod 0600 ~
 
 > RoboTwin 的 curobo 配置含本机绝对路径，每台评测机首次运行前需生成一次；否则评测会报 `'Robot' object has no attribute 'left_planner'`。
 
-```bash
+````bash
 conda activate <robotwin_env>  # RoboTwin 官方环境名 (按实际安装命名, 下同)
 python $ROBOTWIN_ROOT/scripts/update_embodiment_config_path.py
-```
+````
 
 ## 7. 运行评测（不改任何官方代码）
 
 **单任务验证**（先确认链路通）：
 
-```bash
+````bash
 # 另开终端: 使用 RoboTwin 的 conda 环境
 conda activate <robotwin_env>
 cd $ROBOTWIN_ROOT
@@ -114,11 +136,11 @@ python scripts/eval_policy_xpolicylab.py \
   --protocol ws --host 127.0.0.1 --port 5695 \
   --task_name adjust_bottle --task_config demo_clean \
   --test_num 5 --policy_name bridge --root_dir $ROBOTWIN_ROOT
-```
+````
 
-**全部 50 个任务（官方 multitask 入口，无需写循环）**：RoboTwin 官方提供 `scripts/eval_policy.sh` 统一评测入口（2026-08 起），`multitask` 子命令读取 `env_cfg/eval/all_tasks.yml`（官方维护的全部 50 个任务与 GPU 设置），一次跑完并多任务/多 GPU 调度；桥接层本身就是预启动的 XPolicyLab policy server，配合官方 remote 模式直连即可：
+**全部任务（官方 multitask 入口，无需写循环）**：RoboTwin 官方提供 `scripts/eval_policy.sh` 统一评测入口（2026-08 起），`multitask` 子命令读取 `env_cfg/eval/all_tasks.yml`（官方维护的任务与 GPU 设置，截至本文档编写时为 50 个任务，以该 yml 实际内容为准），一次跑完并多任务/多 GPU 调度；桥接层本身就是预启动的 XPolicyLab policy server，配合官方 remote 模式直连即可：
 
-```bash
+````bash
 conda activate <robotwin_env>
 cd $ROBOTWIN_ROOT
 bash scripts/eval_policy.sh multitask \
@@ -129,11 +151,11 @@ bash scripts/eval_policy.sh multitask \
   --action-type joint \
   --enable-remote \
   --policy-server-ip 127.0.0.1 --policy-server-port 5695
-```
+````
 
 **任务与配置说明**
 
-- 任务全集由 `env_cfg/eval/all_tasks.yml` 的 `tasks` 字段决定（默认全部 50 个）；只评单个任务时把该文件 `tasks` 裁成一项即可
+- 任务全集由 `env_cfg/eval/all_tasks.yml` 的 `tasks` 字段决定（截至本文档编写时为 50 个，以该 yml 实际内容为准）；只评单个任务时把该文件 `tasks` 裁成一项即可
 - **任务配置有两类**：`demo_clean`（默认，干净场景）与 `demo_randomized`（随机化场景，物体/纹理/光照更强泛化挑战）；改 `--task-config demo_randomized` 再执行一次即可跑另一类，或在 yml 的 `tasks` 条目上按任务单独覆写
 - `--enable-remote` 表示直连**已预启动**的远端 policy server（即桥接层），本地只跑 SAPIEN 仿真客户端，无需 `--ckpt-name` / `--policy-conda-env` / `--policy-name` 本地适配器
 
@@ -144,7 +166,7 @@ bash scripts/eval_policy.sh multitask \
 - **GPU 预算** = `len(gpu_ids) × jobs_per_gpu`。官方 yml 默认 `gpu_ids: "0-7"`（8 卡）`jobs_per_gpu: 1` → 预算 8；按客户实际 GPU 数在 yml 中调整（如 4 卡改 `gpu_ids: "0-3"` → 预算 4）
 - **端点数** = 命令行 `--policy-server-ip/--policy-server-port` 传了几对（`--policy-server-ip` 是 append 参数，可重复）。**CLI 传了端点会整组替换 yml 里的 `policy_server_ip/policy_server_port`，不叠加**；不传则回落到 yml 配置（官方默认 4 个端口 `[18080..18083]`）
 
-| 传法 | 端点数 | GPU 预算 | 实际并发 | 50 任务走向 |
+| 传法 | 端点数 | GPU 预算 | 实际并发 | 任务走向 |
 |---|---|---|---|---|
 | 传 1 对（如上例 5695） | 1 | 8 | min(8,1)=**1** | 全部串行走 5695 |
 | 传 4 对（5695~5698） | 4 | 8 | min(8,4)=**4** | 4 路并发轮询 |
@@ -153,7 +175,7 @@ bash scripts/eval_policy.sh multitask \
 
 **多实例并行写法**（8 路为例）：先各起 1 个桥接层实例监听 5695~5702（每个连一个模型服务），再传 8 对端点组成 server 池：
 
-```bash
+````bash
 bash scripts/eval_policy.sh multitask \
   --config env_cfg/eval/all_tasks.yml --task-config demo_clean \
   --env-cfg-type arx_x5 --eval-env-conda-env <robotwin_env> --action-type joint \
@@ -166,7 +188,7 @@ bash scripts/eval_policy.sh multitask \
   --policy-server-ip 127.0.0.1 --policy-server-port 5700 \
   --policy-server-ip 127.0.0.1 --policy-server-port 5701 \
   --policy-server-ip 127.0.0.1 --policy-server-port 5702
-```
+````
 
 > 注意：每个端口必须有桥接层实例在监听才有效；只写端口不启实例，对应任务会连接失败。端点重复会报 `duplicate endpoint`。
 
@@ -174,7 +196,7 @@ bash scripts/eval_policy.sh multitask \
 
 | 检查点 | 判定 |
 |---|---|
-| 桥接层日志 | `Connected to wss://<MODEL_HOST>` + `policy server ready` |
+| 桥接层日志 | `Connected to wss://...` + `policy server ready` |
 | 官方脚本 | `[CONNECTED]` → `Success! n / m` |
 | 最终结果 | `Final success rate: x/y = z%` |
 | 视频产物 | `$ROBOTWIN_ROOT/eval_result/<task>/bridge/<cfg>/<ckpt>/<time>/episode*.mp4` |
@@ -196,13 +218,35 @@ bash scripts/eval_policy.sh multitask \
 
 | 参数 | 默认 | 说明 |
 |---|---|---|
-| `--ws-url` | 必填 | 远端模型地址（`wss://...`） |
+| `--ws-url` | 必填 | 远端模型地址（wss） |
 | `--port` | 5695 | 桥接层监听端口（官方脚本连接） |
 | `--host` | 0.0.0.0 | 监听地址 |
 | `--api-key-file KEY_FILE` | 无 | **推荐**：从受保护文件（0600）读 token，优先级最高 |
-| `--api-key` / `MODEL_API_KEY` | 空 | 模型鉴权 token（`--api-key` 在进程列表可见，env 会被同级进程读取） |
+| `--api-key` | 空 | 命令行传入 token（`ps aux` 对所有用户可见，不建议生产） |
+| `MODEL_API_KEY`（环境变量） | 空 | 环境变量传入 token（同级进程可读 `/proc/<pid>/environ`） |
 | `--camera-map XPL=REMOTE` | 默认映射 | 相机键映射，可多次 |
-| `--n-action-steps` | chunk 全用 | 每次推理消费步数 |
-| `--model` | auto | 模型适配器（默认按模型 metadata.protocol 自动路由；可强制指定，如 `cr-wam`） |
+| `--model` | auto | 模型适配器（默认按模型 metadata.protocol 自动路由；可强制指定） |
 | `--insecure` | 关 | **不校验**模型证书（仍为 TLS 加密，但无身份验证；仅限受控内网使用） |
 | `--cacert CA_FILE` | 无 | 私有 CA 证书路径，用于严格校验模型证书 |
+
+> 优先级：`--api-key-file` > `--api-key` > `MODEL_API_KEY`
+
+## 11. 清理方式
+
+评测完成后，停止桥接层进程即可：
+
+````bash
+# 停止桥接层进程
+pkill -f "robotwin_bridge/main.py"
+
+# 停止官方评测脚本（如有残留）
+pkill -f "eval_policy_xpolicylab.py"
+````
+
+## 12. 已知限制
+
+- 桥接层依赖 RoboTwin 官方 XPolicyLab 的 `client_server.ws.model_server` 接口，官方接口变更时需同步适配
+- 当前仅支持 CloudRobo-WM-7B-Preview 模型，新增模型需在 `models/` 下实现适配器并注册到 `MODEL_REGISTRY`
+- TLS 固定 TLS1.2 + 指定 cipher，模型侧需支持 TLS1.2
+- 全量评测的并发路数受 GPU 预算和桥接层实例数共同限制（见 §7）
+- `--insecure` 仅限受控内网联调，生产环境勿用
