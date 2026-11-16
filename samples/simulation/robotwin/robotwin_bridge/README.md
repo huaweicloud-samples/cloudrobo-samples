@@ -172,7 +172,7 @@ bash scripts/eval_policy.sh multitask \
   --config env_cfg/eval/all_tasks.yml \
   --task-config demo_clean \
   --env-cfg-type arx_x5 \
-  --eval-env-conda-env <robotwin_env> \
+  --eval-env-conda-env <robotwin_env>绝对路径 \
   --action-type joint \
   --policy-name CloudRobo_WM \
   --enable-remote \
@@ -204,7 +204,7 @@ bash scripts/eval_policy.sh multitask \
 ```bash
 bash scripts/eval_policy.sh multitask \
   --config env_cfg/eval/all_tasks.yml --task-config demo_clean \
-  --env-cfg-type arx_x5 --eval-env-conda-env <robotwin_env> --action-type joint \
+  --env-cfg-type arx_x5 --eval-env-conda-env <robotwin_env>绝对路径 --action-type joint \
   --policy-name CloudRobo_WM \
   --enable-remote \
   --policy-server-ip 127.0.0.1 --policy-server-port 5695 \
