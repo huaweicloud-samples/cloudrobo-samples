@@ -262,18 +262,26 @@ bash scripts/eval_policy.sh multitask \
 
 ## 11. 清理方式
 
-评测完成后，停止桥接层进程即可：
+**单任务 / 手动启动场景**（`-u "$USER"` 仅匹配当前用户进程，避免共享评测机上误杀他人）：
 
 ```bash
 # 先核对目标进程, 确认是本机本用户的桥接层/评测脚本
 pgrep -af "robotwin_bridge/main.py"
 pgrep -af "eval_policy_xpolicylab.py"
 
-# 停止桥接层进程 (仅限当前用户, 避免共享评测机上误杀他人进程)
+# 停止桥接层
 pkill -u "$USER" -f "robotwin_bridge/main.py"
-
 # 停止官方评测脚本（如有残留）
 pkill -u "$USER" -f "eval_policy_xpolicylab.py"
+
+```
+**multitask 场景**：必须先停调度器，顺序不可颠倒——先杀 job 的话调度器会继续拉起新的：
+
+```bash
+pkill -u "$USER" -f "eval_policy_multitask.py"    # 1) 停调度器
+pkill -u "$USER" -f "eval_policy_xpolicylab.py"   # 2) 停当前 job 的评测客户端
+pkill -u "$USER" -f "robotwin_bridge/main.py"     # 4) 停桥接层
+
 ```
 
 ## 12. 已知限制
