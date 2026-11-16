@@ -153,6 +153,7 @@ bash scripts/eval_policy.sh multitask \
   --env-cfg-type arx_x5 \
   --eval-env-conda-env <robotwin_env> \
   --action-type joint \
+  --policy-name CloudRobo_WM \
   --enable-remote \
   --policy-server-ip 127.0.0.1 --policy-server-port 5695
 ```
@@ -161,7 +162,7 @@ bash scripts/eval_policy.sh multitask \
 
 - 任务全集由 `env_cfg/eval/all_tasks.yml` 的 `tasks` 字段决定（截至本文档编写时为 50 个，以该 yml 实际内容为准）；只评单个任务时把该文件 `tasks` 裁成一项即可
 - **任务配置有两类**：`demo_clean`（默认，干净场景）与 `demo_randomized`（随机化场景，物体/纹理/光照更强泛化挑战）；改 `--task-config demo_randomized` 再执行一次即可跑另一类，或在 yml 的 `tasks` 条目上按任务单独覆写
-- `--enable-remote` 表示直连**已预启动**的远端 policy server（即桥接层），本地只跑 SAPIEN 仿真客户端，无需 `--ckpt-name` / `--policy-conda-env` / `--policy-name` 本地适配器
+- `--enable-remote` 表示直连**已预启动**的远端 policy server（即桥接层），本地只跑 SAPIEN 仿真客户端；`--ckpt-name` / `--policy-conda-env` 可省，`--policy-name` 仍必填（填 `CloudRobo_WM`，对应 `XPolicyLab/policy/` 下的客户端适配器目录，remote 模式下仅用于选择客户端启动脚本，不会绕开桥接层）
 
 **并发路数怎么算（关键）**
 
@@ -183,6 +184,7 @@ bash scripts/eval_policy.sh multitask \
 bash scripts/eval_policy.sh multitask \
   --config env_cfg/eval/all_tasks.yml --task-config demo_clean \
   --env-cfg-type arx_x5 --eval-env-conda-env <robotwin_env> --action-type joint \
+  --policy-name CloudRobo_WM \
   --enable-remote \
   --policy-server-ip 127.0.0.1 --policy-server-port 5695 \
   --policy-server-ip 127.0.0.1 --policy-server-port 5696 \
