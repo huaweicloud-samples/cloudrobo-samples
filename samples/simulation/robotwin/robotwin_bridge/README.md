@@ -69,8 +69,11 @@ robotwin/
 
 ## 4. 部署步骤
 
+### 4.1 放置交付包
+
+建议放在 RoboTwin 根目录下，与官方代码同级：
+
 ```bash
-# 4.1 放置交付包 (建议放在 RoboTwin 根目录下, 与官方代码同级)
 cd $ROBOTWIN_ROOT
 # 将 robotwin_bridge/ 目录整体放入 $ROBOTWIN_ROOT/, 然后:
 pip install -r $ROBOTWIN_ROOT/robotwin_bridge/requirements.txt
@@ -78,35 +81,33 @@ pip install -r $ROBOTWIN_ROOT/robotwin_bridge/requirements.txt
 # 注: robotwin_bridge/ 是独立交付包, 不要提交到 RoboTwin 官方 git 仓库;
 #     若 RoboTwin 是 git clone 的, 建议把 robotwin_bridge/ 加进 .gitignore
 chmod +x $ROBOTWIN_ROOT/robotwin_bridge/start.sh
+```
 
-# 4.2 代理豁免: 评测与本机/模型链路均为内网直连, 默认无需操作
-# (仅当评测机配置了 HTTP 代理且连接报 504 / InvalidProxy 时, 才补下述豁免:
+### 4.2 代理豁免
+
+评测与本机/模型链路均为内网直连，默认无需操作。仅当评测机配置了 HTTP 代理、连接报 `504` / `InvalidProxy` 时，才补下述豁免：
+
+```bash
 export no_proxy="localhost,127.0.0.1,<MODEL_HOST>"
 export NO_PROXY="$no_proxy"
+```
 
-# 4.3 启动桥接层 (监听本地 ws 端口, 等待官方脚本连接)
-获取 `<模型服务 wss 地址>` 与 API Key：
+### 4.3 获取模型服务地址与 API Key
 
-- wss 地址：登录CloudRobo平台，进入模型部署，在对应模型部署详情界面获取。
+- wss 地址：登录 CloudRobo 平台，进入模型部署，在对应模型部署详情界面获取。
 - API Key（按类型二选一）：
   - 公共池：在部署详情页获取该服务的 API Key；
   - 专属池：使用客户自己的 API Key（专属池服务绑定客户自有密钥）。
 
-API Key 属于敏感凭据：不要提交进仓库、工单或聊天记录。将其保存为 0600 权限文件供桥接层读取：
+API Key 属于敏感凭据：不要提交进仓库、工单或聊天记录。建议保存为 `0600` 权限文件供桥接层读取：
 
+```bash
 mkdir -p ~/.config/robotwin_bridge && umask 077
-printf '%s\n' '<APIKey>' > ~/.config/robotwin_bridge/api_key
+printf '%s\n' 'YOUR_API_KEY' > ~/.config/robotwin_bridge/api_key
 chmod 600 ~/.config/robotwin_bridge/api_key
-
-cd $ROBOTWIN_ROOT/robotwin_bridge && ./start.sh \
-  --ws-url <模型服务 wss 地址> \
-  --port 5695 \
-  --robotwin-root $ROBOTWIN_ROOT \
-  --api-key-file ~/.config/robotwin_bridge/api_key
-# 期望: "[BridgeServer] policy server ready at ws://127.0.0.1:5695"
 ```
 
-Token 三选一（生产推荐 ①，优先级恒为 ① > ② > ③）：
+**Token 三选一**（生产推荐 ①；三者并存时，程序读取优先级恒为 **① > ③ > ②**，与 §10 一致）：
 
 | 方式 | 用法 | 安全性 |
 |---|---|---|
@@ -114,10 +115,17 @@ Token 三选一（生产推荐 ①，优先级恒为 ① > ② > ③）：
 | ② 环境变量 | `export MODEL_API_KEY=<token>` | 同级任意进程可经 `/proc/<pid>/environ` 读取 |
 | ③ 命令行 | `--api-key <token>` | `ps aux` 对**所有用户**可见（不建议生产） |
 
+### 4.4 启动桥接层
+
+监听本地 ws 端口，等待官方脚本连接：
+
 ```bash
-# 推荐做法
-mkdir -p ~/.config/robotwin_bridge && umask 077
-printf '%s\n' 'YOUR_API_KEY' > ~/.config/robotwin_bridge/api_key && chmod 0600 ~/.config/robotwin_bridge/api_key
+cd $ROBOTWIN_ROOT/robotwin_bridge && ./start.sh \
+  --ws-url <模型服务 wss 地址> \
+  --port 5695 \
+  --robotwin-root $ROBOTWIN_ROOT \
+  --api-key-file ~/.config/robotwin_bridge/api_key
+# 期望: "[BridgeServer] policy server ready at ws://127.0.0.1:5695"
 ```
 
 ## 5. TLS 校验模式
@@ -152,7 +160,7 @@ cd $ROBOTWIN_ROOT
 python scripts/eval_policy_xpolicylab.py \
   --protocol ws --host 127.0.0.1 --port 5695 \
   --task_name adjust_bottle --task_config demo_clean \
-  --test_num 5 --policy_name bridge --root_dir $ROBOTWIN_ROOT
+  --test_num 5 --policy_name CloudRobo_WM --root_dir $ROBOTWIN_ROOT
 ```
 
 **全部任务（官方 multitask 入口，无需写循环）**：RoboTwin 官方提供 `scripts/eval_policy.sh` 统一评测入口（2026-08 起），`multitask` 子命令读取 `env_cfg/eval/all_tasks.yml`（官方维护的任务与 GPU 设置，截至本文档编写时为 50 个任务，以该 yml 实际内容为准），一次跑完并多任务/多 GPU 调度；桥接层本身就是预启动的 XPolicyLab policy server，配合官方 remote 模式直连即可：
@@ -244,9 +252,11 @@ bash scripts/eval_policy.sh multitask \
 | `--api-key` | 空 | 命令行传入 token（`ps aux` 对所有用户可见，不建议生产） |
 | `MODEL_API_KEY`（环境变量） | 空 | 环境变量传入 token（同级进程可读 `/proc/<pid>/environ`） |
 | `--camera-map XPL=REMOTE` | 默认映射 | 相机键映射，可多次 |
+| `--n-action-steps N` | 无 | 每次推理消费步数（默认用满 chunk） |
 | `--model` | auto | 模型适配器（默认按模型 metadata.protocol 自动路由；可强制指定） |
 | `--insecure` | 关 | **不校验**模型证书（仍为 TLS 加密，但无身份验证；仅限受控内网使用） |
 | `--cacert CA_FILE` | 无 | 私有 CA 证书路径，用于严格校验模型证书 |
+| `--log-level LEVEL` | INFO | 日志级别（如 `DEBUG` / `INFO` / `WARNING`） |
 
 > 优先级：`--api-key-file` > `--api-key` > `MODEL_API_KEY`
 
@@ -255,11 +265,15 @@ bash scripts/eval_policy.sh multitask \
 评测完成后，停止桥接层进程即可：
 
 ```bash
-# 停止桥接层进程
-pkill -f "robotwin_bridge/main.py"
+# 先核对目标进程, 确认是本机本用户的桥接层/评测脚本
+pgrep -af "robotwin_bridge/main.py"
+pgrep -af "eval_policy_xpolicylab.py"
+
+# 停止桥接层进程 (仅限当前用户, 避免共享评测机上误杀他人进程)
+pkill -u "$USER" -f "robotwin_bridge/main.py"
 
 # 停止官方评测脚本（如有残留）
-pkill -f "eval_policy_xpolicylab.py"
+pkill -u "$USER" -f "eval_policy_xpolicylab.py"
 ```
 
 ## 12. 已知限制
