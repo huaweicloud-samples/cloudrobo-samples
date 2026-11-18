@@ -10,14 +10,16 @@ models — 模型适配层 (可插拔)
     3. server 侧无需改动, 模型 metadata 携带该 protocol 即自动路由。
 """
 
-from .crwam import CrWamModel
+from .cloudrobo_wm import CloudRoboWMModel, CrWamModel
 
 MODEL_REGISTRY = {
-    "cr-wam": CrWamModel,   # metadata.protocol 使用连字符; 兼容别名见下
+    "cloudrobo-wm": CloudRoboWMModel,   # 云端模型自报 protocol
+    "cloudrobowm": CloudRoboWMModel,
+    "cr-wam": CrWamModel,               # 旧 protocol 兼容别名
     "crwam": CrWamModel,
 }
 
-DEFAULT_MODEL = "cr-wam"
+DEFAULT_MODEL = "cloudrobo-wm"
 
 
 def resolve_model_name(name: str | None) -> str:

@@ -33,7 +33,7 @@ RoboTwin 2.0 官方评测脚本使用 WS，华为云 CloudRobo 远端世界模�
 | 功能 | 说明 | 实现 |
 |---|---|---|
 | WS ↔ WSS | 对官方脚本暴露本地 ws 端口，对模型走 wss 加密通道 | `ws_client.py` |
-| 格式转换 | XPolicyLab obs/state → CloudRobo-WM-7B-Preview obs/state 格式转换 | `models/crwam.py` |
+| 格式转换 | XPolicyLab obs/state → CloudRobo-WM-7B-Preview obs/state 格式转换 | `models/cloudrobo_wm.py` |
 | Token 认证 | 连接模型时注入 `Authorization: Bearer <token>` | `ws_client.py` + `main.py` |
 
 ## 2. 前置要求（评测方自备）
@@ -61,7 +61,7 @@ robotwin/
     ├── start.sh                启动脚本
     ├── models/                 模型适配层
     │   ├── __init__.py         注册表
-    │   └── crwam.py            格式转换
+    │   └── cloudrobo_wm.py     格式转换
     └── robotwin_cache/
         ├── clean_seen.jsonl    clean 缓存文件
         └── random_unseen.jsonl random 缓存文件
@@ -199,7 +199,7 @@ bash scripts/eval_policy.sh multitask \
 | 传 8 对（5695~5702） | 8 | 8 | min(8,8)=**8** | 跑满 8 路 |
 | 传 10 对 | 10 | 8 | min(8,10)=**8** | 被 GPU 预算卡住，需调大 gpu_ids |
 
-**多实例并行写法**（8 路为例）：先各起 1 个桥接层实例监听 5695~5702（每个连一个模型服务），再传 8 对端点组成 server 池：
+**多实例并行写法**（8 路为例）：先启动8个模型，随后每个端口起 1 个桥接层实例监听 （5695~5702）并分别连接一个模型，再传 8 对端点组成 server 池：
 
 ```bash
 bash scripts/eval_policy.sh multitask \
@@ -252,7 +252,6 @@ bash scripts/eval_policy.sh multitask \
 | `--api-key` | 空 | 命令行传入 token（`ps aux` 对所有用户可见，不建议生产） |
 | `MODEL_API_KEY`（环境变量） | 空 | 环境变量传入 token（同级进程可读 `/proc/<pid>/environ`） |
 | `--camera-map XPL=REMOTE` | 默认映射 | 相机键映射，可多次 |
-| `--n-action-steps N` | 无 | 每次推理消费步数（默认用满 chunk） |
 | `--model` | auto | 模型适配器（默认按模型 metadata.protocol 自动路由；可强制指定） |
 | `--insecure` | 关 | **不校验**模型证书（仍为 TLS 加密，但无身份验证；仅限受控内网使用） |
 | `--cacert CA_FILE` | 无 | 私有 CA 证书路径，用于严格校验模型证书 |
