@@ -33,7 +33,7 @@ RoboTwin 2.0 官方评测脚本使用 WS，华为云 CloudRobo 远端世界模�
 | 功能 | 说明 | 实现 |
 |---|---|---|
 | WS ↔ WSS | 对官方脚本暴露本地 ws 端口，对模型走 wss 加密通道 | `ws_client.py` |
-| 格式转换 | XPolicyLab obs/state → CloudRobo-WM-7B-Preview obs/state 格式转换 | `models/crwam.py` |
+| 格式转换 | XPolicyLab obs/state → CloudRobo-WM-7B-Preview obs/state 格式转换 | `models/cloudrobo_wm.py` |
 | Token 认证 | 连接模型时注入 `Authorization: Bearer <token>` | `ws_client.py` + `main.py` |
 
 ## 2. 前置要求（评测方自备）
@@ -61,7 +61,7 @@ robotwin/
     ├── start.sh                启动脚本
     ├── models/                 模型适配层
     │   ├── __init__.py         注册表
-    │   └── crwam.py            格式转换
+    │   └── cloudrobo_wm.py     格式转换
     └── robotwin_cache/
         ├── clean_seen.jsonl    clean 缓存文件
         └── random_unseen.jsonl random 缓存文件
