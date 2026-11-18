@@ -252,7 +252,6 @@ bash scripts/eval_policy.sh multitask \
 | `--api-key` | 空 | 命令行传入 token（`ps aux` 对所有用户可见，不建议生产） |
 | `MODEL_API_KEY`（环境变量） | 空 | 环境变量传入 token（同级进程可读 `/proc/<pid>/environ`） |
 | `--camera-map XPL=REMOTE` | 默认映射 | 相机键映射，可多次 |
-| `--n-action-steps N` | 无 | 每次推理消费步数（默认用满 chunk） |
 | `--model` | auto | 模型适配器（默认按模型 metadata.protocol 自动路由；可强制指定） |
 | `--insecure` | 关 | **不校验**模型证书（仍为 TLS 加密，但无身份验证；仅限受控内网使用） |
 | `--cacert CA_FILE` | 无 | 私有 CA 证书路径，用于严格校验模型证书 |
