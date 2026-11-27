@@ -45,6 +45,8 @@ def create_ssl_context(insecure: bool = False, ca_cert: str | None = None) -> ss
         context.verify_mode = ssl.CERT_NONE
     elif ca_cert:
         context.load_verify_locations(ca_cert)
+    else:
+        context.load_default_certs()
     return context
 
 

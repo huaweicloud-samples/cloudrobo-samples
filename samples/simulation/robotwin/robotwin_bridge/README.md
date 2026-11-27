@@ -62,10 +62,19 @@ robotwin/
     ├── models/                 模型适配层
     │   ├── __init__.py         注册表
     │   └── cloudrobo_wm.py     格式转换
-    └── robotwin_cache/
-        ├── clean_seen.jsonl    clean 缓存文件
-        └── random_unseen.jsonl random 缓存文件
+    ├── robotwin_cache/         固定输入缓存
+    │   ├── CHECKSUMS.json      缓存文件校验和
+    │   ├── evaluation_10000.json
+    │   └── inputs/
+    │       ├── clean_seen.jsonl
+    │       └── random_unseen.jsonl
+    └── bridge_seed_eval/       固定种子评测
+        ├── README.md
+        ├── fixed_bridge_driver.py
+        └── run_fixed.sh
 ````
+
+固定种子评测的驱动与批次脚本在 `bridge_seed_eval/`，用法见 `bridge_seed_eval/README.md`。
 
 ## 4. 部署步骤
 
